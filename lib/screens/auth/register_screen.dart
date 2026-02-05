@@ -23,11 +23,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
   XFile? _selectedImage;
   bool _isLoading = false;
   String? _errorMessage;
-  bool _isMounted = true; // Add this flag
+  bool _isMounted = true;
 
   @override
   void dispose() {
-    _isMounted = false; // Set to false when widget is disposed
+    _isMounted = false;
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -46,7 +46,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       if (_isMounted) {
         setState(() {
-          _errorMessage = 'Error picking image';
+          _errorMessage = 'Error picking image: ${e.toString()}';
         });
       }
     }
@@ -74,60 +74,126 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
 
-      // Call signUp without userId parameter
+      // IMPORTANT: Check if user is already logged in
+      if (authService.isAuthenticated) {
+        await authService.signOut(); // Log out any existing session
+      }
+
+      // Step 1: Create user in Supabase Auth
+      print('📝 Step 1: Creating user in Supabase Auth...');
       await authService.signUp(
         email: _emailController.text,
         password: _passwordController.text,
         displayName: _displayNameController.text,
       );
 
-      // Get the current user after signup
+      // Check if user was created successfully
       final currentUser = authService.currentUser;
       if (currentUser == null) {
-        throw Exception('User registration failed - no user returned');
+        throw Exception('User registration failed - no user created');
       }
 
-      // Upload profile image if selected
+      print('✅ Step 1 complete: User ${currentUser.id} created');
+
+      // Step 2: Upload profile image (optional)
       String? profilePhotoUrl;
       if (_selectedImage != null) {
+        print('📸 Step 2: Uploading profile image...');
         profilePhotoUrl = await _storageService.uploadImage(
           bucket: 'profile-images',
           imageFile: _selectedImage!,
         );
+        print('✅ Profile image uploaded: $profilePhotoUrl');
       }
 
-      // Update user profile with additional info (REMOVED BIO)
+      // Step 3: Update user profile with additional info
+      print('👤 Step 3: Creating user profile...');
       await _userService.updateUserProfile(
         displayName: _displayNameController.text,
+        bio: null, // Bio is now removed
         profilePhotoUrl: profilePhotoUrl,
-        // Bio removed from here
       );
 
-      // Wait a moment to ensure profile is loaded
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Step 4: Force reload of user data
+      print('🔄 Step 4: Reloading user data...');
+      await authService.loadCurrentUser();
 
-      // Check if widget is still mounted before navigating
+      // Verify user is properly authenticated
+      if (!authService.isAuthenticated) {
+        throw Exception('User authentication failed after registration');
+      }
+
+      print('🎉 Registration complete! Navigating to home...');
+
+      // Success - navigate to home
       if (_isMounted) {
-        // Navigate to home screen
         Navigator.of(
           context,
         ).pushNamedAndRemoveUntil('/home', (route) => false);
       }
     } catch (e) {
-      print('Registration error: $e');
+      print('❌ Registration error: $e');
+
+      // CRITICAL: If registration fails, make sure to sign out
+      try {
+        final authService = Provider.of<AuthService>(context, listen: false);
+        if (authService.isAuthenticated) {
+          print(
+            '⚠️ Registration failed but user is authenticated. Signing out...',
+          );
+          await authService.signOut();
+        }
+      } catch (signOutError) {
+        print('⚠️ Error during sign out: $signOutError');
+      }
+
+      String errorMessage;
+
+      if (e.toString().contains('already registered') ||
+          e.toString().contains('User already registered') ||
+          e.toString().contains('duplicate key')) {
+        errorMessage =
+            'This email is already registered. Please use a different email or login.';
+      } else if (e.toString().contains('password') ||
+          e.toString().contains('weak')) {
+        errorMessage =
+            'Password is too weak. Use at least 6 characters with letters and numbers.';
+      } else if (e.toString().contains('email') ||
+          e.toString().contains('invalid')) {
+        errorMessage = 'Please enter a valid email address.';
+      } else if (e.toString().contains('network') ||
+          e.toString().contains('timeout')) {
+        errorMessage =
+            'Network error. Please check your internet connection and try again.';
+      } else {
+        errorMessage = 'Registration failed: ${e.toString().split('\n').first}';
+      }
 
       if (_isMounted) {
         setState(() {
-          _errorMessage =
-              e.toString().contains('User already registered') ||
-                  e.toString().contains('already registered') ||
-                  e.toString().contains('duplicate key')
-              ? 'Email already registered. Please use a different email.'
-              : 'Registration failed. Please try again.';
+          _errorMessage = errorMessage;
+          _isLoading = false;
         });
       }
-    } finally {
+
+      // Show error snackbar
       if (_isMounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(errorMessage),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (_isMounted && _isLoading) {
         setState(() {
           _isLoading = false;
         });
@@ -227,7 +293,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Tap to add profile photo',
+              'Tap to add profile photo (Optional)',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
@@ -309,7 +375,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       return null;
                     },
                   ),
-                  // BIO FIELD REMOVED FROM HERE
                 ],
               ),
             ),
@@ -318,10 +383,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
             if (_errorMessage != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 16),
-                child: Text(
-                  _errorMessage!,
-                  style: const TextStyle(color: Colors.red, fontSize: 14),
-                  textAlign: TextAlign.center,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 

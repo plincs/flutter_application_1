@@ -85,31 +85,51 @@ class AuthService extends ChangeNotifier {
     required String displayName,
   }) async {
     try {
+      print('🔄 Starting signUp for: $email');
+
       // First, try to sign up with Supabase Auth
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
+        data: {'display_name': displayName},
       );
 
+      print('Supabase auth response: ${response.user?.id}');
+
       if (response.user != null) {
-        // Use upsert instead of insert to handle existing users
+        // Create user profile in database
         await _supabase.from('users').upsert({
           'id': response.user!.id,
           'email': email,
           'display_name': displayName,
-          'notifications_enabled': true, // Default to true
-          'email_notifications': true, // Default to true
-          'created_at': DateTime.now().toIso8601String(),
-          'updated_at': DateTime.now().toIso8601String(),
-        }, onConflict: 'id'); // This handles the duplicate key issue
+          'created_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        }, onConflict: 'id');
 
-        // Load the newly created user
+        print('✅ User profile created successfully');
+
+        // Force reload of current user
         await _loadCurrentUser();
+
+        // Verify user is loaded
+        if (_currentUser == null) {
+          throw Exception('User created but not loaded properly');
+        }
       } else {
-        throw Exception('User registration failed - no user returned');
+        throw Exception(
+          'User registration failed - no user returned from Supabase',
+        );
       }
     } catch (e) {
-      print('Sign up error: $e');
+      print('❌ Sign up error details: $e');
+
+      // Clean up: If auth succeeded but profile creation failed, delete the auth user
+      try {
+        await _supabase.auth.signOut();
+      } catch (_) {
+        // Ignore sign out errors
+      }
+
       rethrow;
     }
   }
