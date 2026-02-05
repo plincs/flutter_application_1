@@ -74,26 +74,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
 
-      // IMPORTANT: Check if user is already logged in
+      // IMPORTANT: Clear any existing session before registration
       if (authService.isAuthenticated) {
-        await authService.signOut(); // Log out any existing session
+        await authService.signOut();
       }
 
       // Step 1: Create user in Supabase Auth
       print('📝 Step 1: Creating user in Supabase Auth...');
-      await authService.signUp(
+      final authResponse = await authService.signUp(
         email: _emailController.text,
         password: _passwordController.text,
         displayName: _displayNameController.text,
       );
 
       // Check if user was created successfully
-      final currentUser = authService.currentUser;
-      if (currentUser == null) {
+      if (authResponse == null || authResponse.user == null) {
         throw Exception('User registration failed - no user created');
       }
 
-      print('✅ Step 1 complete: User ${currentUser.id} created');
+      final currentUser = authResponse.user;
+      print('✅ Step 1 complete: User ${currentUser!.id} created');
+
+      // Wait a moment for Supabase to fully process the registration
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Step 2: Upload profile image (optional)
       String? profilePhotoUrl;
@@ -110,63 +113,101 @@ class _RegisterScreenState extends State<RegisterScreen> {
       print('👤 Step 3: Creating user profile...');
       await _userService.updateUserProfile(
         displayName: _displayNameController.text,
-        bio: null, // Bio is now removed
+        bio: null,
         profilePhotoUrl: profilePhotoUrl,
       );
 
-      // Step 4: Force reload of user data
-      print('🔄 Step 4: Reloading user data...');
-      await authService.loadCurrentUser();
+      // Step 4: Wait a bit more for profile to be fully created
+      await Future.delayed(const Duration(milliseconds: 300));
 
-      // Verify user is properly authenticated
-      if (!authService.isAuthenticated) {
-        throw Exception('User authentication failed after registration');
+      // Step 5: Force reload of user data with retry logic
+      print('🔄 Step 5: Reloading user data...');
+      bool userLoaded = false;
+      int retryCount = 0;
+      const maxRetries = 3;
+
+      while (!userLoaded && retryCount < maxRetries) {
+        try {
+          await authService.loadCurrentUser();
+          if (authService.isAuthenticated && authService.currentUser != null) {
+            userLoaded = true;
+            print('✅ User data loaded successfully');
+          } else {
+            retryCount++;
+            print('⚠️ User not loaded, retry $retryCount of $maxRetries');
+            await Future.delayed(Duration(milliseconds: 500 * retryCount));
+          }
+        } catch (e) {
+          retryCount++;
+          print('⚠️ Error loading user (retry $retryCount): $e');
+          await Future.delayed(Duration(milliseconds: 500 * retryCount));
+        }
       }
 
-      print('🎉 Registration complete! Navigating to home...');
+      if (!userLoaded) {
+        print('⚠️ User not loaded after retries, but continuing anyway');
+      }
+
+      print('🎉 Registration complete!');
+
+      // Clear all form fields
+      _emailController.clear();
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+      _displayNameController.clear();
 
       // Success - navigate to home
       if (_isMounted) {
-        Navigator.of(
-          context,
-        ).pushNamedAndRemoveUntil('/home', (route) => false);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(
+            context,
+          ).pushNamedAndRemoveUntil('/home', (route) => false);
+        });
       }
     } catch (e) {
       print('❌ Registration error: $e');
 
-      // CRITICAL: If registration fails, make sure to sign out
+      // Always sign out on error to clean up state
       try {
         final authService = Provider.of<AuthService>(context, listen: false);
-        if (authService.isAuthenticated) {
-          print(
-            '⚠️ Registration failed but user is authenticated. Signing out...',
-          );
-          await authService.signOut();
-        }
+        await authService.signOut();
       } catch (signOutError) {
         print('⚠️ Error during sign out: $signOutError');
       }
 
       String errorMessage;
 
-      if (e.toString().contains('already registered') ||
-          e.toString().contains('User already registered') ||
-          e.toString().contains('duplicate key')) {
+      // Parse specific error messages
+      final errorString = e.toString().toLowerCase();
+
+      if (errorString.contains('already registered') ||
+          errorString.contains('already exists') ||
+          errorString.contains('duplicate key') ||
+          errorString.contains('user already registered')) {
         errorMessage =
-            'This email is already registered. Please use a different email or login.';
-      } else if (e.toString().contains('password') ||
-          e.toString().contains('weak')) {
-        errorMessage =
-            'Password is too weak. Use at least 6 characters with letters and numbers.';
-      } else if (e.toString().contains('email') ||
-          e.toString().contains('invalid')) {
+            'This email is already registered. Please use a different email.';
+      } else if (errorString.contains('password') ||
+          errorString.contains('weak')) {
+        errorMessage = 'Password must be at least 6 characters.';
+      } else if (errorString.contains('email') ||
+          errorString.contains('invalid')) {
         errorMessage = 'Please enter a valid email address.';
-      } else if (e.toString().contains('network') ||
-          e.toString().contains('timeout')) {
-        errorMessage =
-            'Network error. Please check your internet connection and try again.';
+      } else if (errorString.contains('network') ||
+          errorString.contains('timeout') ||
+          errorString.contains('socket')) {
+        errorMessage = 'Network error. Please check your connection.';
+      } else if (errorString.contains('rate limit') ||
+          errorString.contains('too many requests')) {
+        errorMessage = 'Too many attempts. Please try again later.';
       } else {
-        errorMessage = 'Registration failed: ${e.toString().split('\n').first}';
+        // Extract the first line of error message
+        final lines = e.toString().split('\n');
+        errorMessage = lines.isNotEmpty
+            ? lines.first
+            : 'Registration failed. Please try again.';
+        if (errorMessage.length > 100) {
+          errorMessage = errorMessage.substring(0, 100) + '...';
+        }
       }
 
       if (_isMounted) {
@@ -178,19 +219,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // Show error snackbar
       if (_isMounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorMessage),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'OK',
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(errorMessage),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 5),
+              action: SnackBarAction(
+                label: 'OK',
+                textColor: Colors.white,
+                onPressed: () {
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                },
+              ),
             ),
-          ),
-        );
+          );
+        });
       }
     } finally {
       if (_isMounted && _isLoading) {
@@ -334,7 +378,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Please enter your email';
                       }
-                      if (!value.contains('@') || !value.contains('.')) {
+                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                         return 'Please enter a valid email';
                       }
                       return null;
@@ -371,6 +415,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please confirm your password';
+                      }
+                      if (value != _passwordController.text) {
+                        return 'Passwords do not match';
                       }
                       return null;
                     },

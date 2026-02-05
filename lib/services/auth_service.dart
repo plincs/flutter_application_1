@@ -78,8 +78,8 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // Sign up method - FIXED with upsert instead of insert
-  Future<void> signUp({
+  // Sign up method - FIXED: Now returns AuthResponse
+  Future<AuthResponse> signUp({
     required String email,
     required String password,
     required String displayName,
@@ -115,6 +115,8 @@ class AuthService extends ChangeNotifier {
         if (_currentUser == null) {
           throw Exception('User created but not loaded properly');
         }
+
+        return response; // Return the AuthResponse
       } else {
         throw Exception(
           'User registration failed - no user returned from Supabase',

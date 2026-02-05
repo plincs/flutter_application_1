@@ -63,9 +63,7 @@ class MyApp extends StatelessWidget {
       colorScheme: const ColorScheme.light(
         primary: Colors.blue,
         secondary: Colors.blueAccent,
-        background: Colors.white,
         surface: Colors.white,
-        onBackground: Colors.black,
         onSurface: Colors.black,
       ),
       appBarTheme: const AppBarTheme(
@@ -76,12 +74,12 @@ class MyApp extends StatelessWidget {
       ),
       scaffoldBackgroundColor: Colors.white,
       cardColor: Colors.white,
-      dialogBackgroundColor: Colors.white,
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.white,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
       ),
+      dialogTheme: DialogThemeData(backgroundColor: Colors.white),
     );
   }
 
@@ -93,9 +91,7 @@ class MyApp extends StatelessWidget {
       colorScheme: const ColorScheme.dark(
         primary: Colors.blue,
         secondary: Colors.blueAccent,
-        background: Colors.black,
         surface: Color(0xFF121212),
-        onBackground: Colors.white,
         onSurface: Colors.white,
       ),
       appBarTheme: const AppBarTheme(
@@ -106,12 +102,12 @@ class MyApp extends StatelessWidget {
       ),
       scaffoldBackgroundColor: Colors.black,
       cardColor: const Color(0xFF1E1E1E),
-      dialogBackgroundColor: const Color(0xFF1E1E1E),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: Colors.black,
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
       ),
+      dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1E1E1E)),
     );
   }
 }
