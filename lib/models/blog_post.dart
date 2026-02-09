@@ -13,7 +13,6 @@ class BlogPost {
   final Map<String, dynamic>? reactions;
   final Map<String, dynamic>? userReaction;
   final int commentCount;
-
   final Map<String, dynamic>? reactionCounts;
   final String? currentUserReaction;
 
@@ -86,26 +85,17 @@ class BlogPost {
   });
 
   factory BlogPost.fromJson(Map<String, dynamic> json) {
-    // FIXED: Check for both possible formats
-    // 1. From SQL function: direct author_name and author_photo_url fields
-    // 2. From regular query: nested users object
-
     String? authorName;
     String? authorPhoto;
 
-    // First check if author_name is directly in the JSON (from SQL function)
     if (json['author_name'] != null) {
       authorName = json['author_name'] as String;
       authorPhoto = json['author_photo_url'] as String?;
-    }
-    // Otherwise check for nested users object (from regular query)
-    else if (json['users'] != null) {
+    } else if (json['users'] != null) {
       final users = json['users'] as Map<String, dynamic>?;
       authorName = users?['display_name'] as String?;
       authorPhoto = users?['profile_photo_url'] as String?;
-    }
-    // If neither, use user_id to look up later or default
-    else {
+    } else {
       authorName = 'Unknown';
       authorPhoto = null;
     }
@@ -126,7 +116,6 @@ class BlogPost {
     }
 
     String? currentUserReaction;
-    // Check current_user_reaction field directly (from SQL function)
     if (json['current_user_reaction'] != null) {
       if (json['current_user_reaction'] is String) {
         currentUserReaction = json['current_user_reaction'] as String;
@@ -134,9 +123,7 @@ class BlogPost {
         currentUserReaction =
             json['current_user_reaction']['reaction_type'] as String?;
       }
-    }
-    // Also check user_reaction for backward compatibility
-    else if (json['user_reaction'] != null) {
+    } else if (json['user_reaction'] != null) {
       if (json['user_reaction'] is Map<String, dynamic>) {
         currentUserReaction = json['user_reaction']['reaction_type'] as String?;
       }

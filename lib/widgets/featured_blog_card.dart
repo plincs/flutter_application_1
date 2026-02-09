@@ -30,7 +30,6 @@ class FeaturedBlogCard extends StatelessWidget {
         ),
         child: Stack(
           children: [
-            // Gradient overlay
             Positioned.fill(
               child: Container(
                 decoration: BoxDecoration(
@@ -44,14 +43,12 @@ class FeaturedBlogCard extends StatelessWidget {
               ),
             ),
 
-            // Content
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Category Tag
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -124,7 +121,6 @@ class FeaturedBlogCard extends StatelessWidget {
               ),
             ),
 
-            // Read Time Badge
             Positioned(
               top: 16,
               right: 16,

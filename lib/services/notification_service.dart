@@ -7,7 +7,6 @@ class NotificationService {
   final StreamController<int> _unreadCountController =
       StreamController<int>.broadcast();
 
-  // Get notifications for dropdown (limited to 10)
   Future<List<Map<String, dynamic>>> getNotificationsForDropdown() async {
     try {
       final user = _supabase.auth.currentUser;
@@ -34,7 +33,6 @@ class NotificationService {
     }
   }
 
-  // Get unread count for badge
   Future<int> getUnreadCount() async {
     try {
       final user = _supabase.auth.currentUser;
@@ -53,16 +51,12 @@ class NotificationService {
     }
   }
 
-  // Stream for real-time unread count updates
   Stream<int> unreadCountStream() {
-    // Load initial value
     _updateUnreadCountStream();
 
-    // Return the stream
     return _unreadCountController.stream;
   }
 
-  // Helper to update the stream with current count
   Future<void> _updateUnreadCountStream() async {
     try {
       final count = await getUnreadCount();
@@ -79,7 +73,6 @@ class NotificationService {
     }
   }
 
-  // Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
       await _supabase
@@ -87,14 +80,12 @@ class NotificationService {
           .update({'is_read': true})
           .eq('id', notificationId);
 
-      // Update stream after marking as read
       await _updateUnreadCountStream();
     } catch (e) {
       print('Error marking notification as read: $e');
     }
   }
 
-  // Mark all notifications as read
   Future<void> markAllAsRead() async {
     try {
       final user = _supabase.auth.currentUser;
@@ -106,14 +97,12 @@ class NotificationService {
           .eq('user_id', user.id)
           .eq('is_read', false);
 
-      // Update stream after marking all as read
       await _updateUnreadCountStream();
     } catch (e) {
       print('Error marking all notifications as read: $e');
     }
   }
 
-  // Create notification
   Future<void> createNotification({
     required String userId,
     required String type,
@@ -134,7 +123,6 @@ class NotificationService {
         'created_at': DateTime.now().toUtc().toIso8601String(),
       });
 
-      // Update stream if notification is for current user
       final currentUser = _supabase.auth.currentUser;
       if (currentUser != null && currentUser.id == userId) {
         await _updateUnreadCountStream();
@@ -144,10 +132,8 @@ class NotificationService {
     }
   }
 
-  // Delete a notification
   Future<void> deleteNotification(String notificationId) async {
     try {
-      // First check if it's unread
       final response = await _supabase
           .from('notifications')
           .select('is_read')
@@ -158,7 +144,6 @@ class NotificationService {
 
       await _supabase.from('notifications').delete().eq('id', notificationId);
 
-      // Only update stream if we deleted an unread notification
       if (isUnread) {
         await _updateUnreadCountStream();
       }
@@ -167,7 +152,6 @@ class NotificationService {
     }
   }
 
-  // Get notification icon and color based on type
   static Map<String, dynamic> getNotificationIcon(String type) {
     switch (type) {
       case 'reaction':
@@ -183,7 +167,6 @@ class NotificationService {
     }
   }
 
-  // Format time for display
   static String formatTime(DateTime time) {
     final now = DateTime.now();
     final difference = now.difference(time);
@@ -205,7 +188,6 @@ class NotificationService {
     }
   }
 
-  // Convenience method for creating reaction notification - UPDATED
   Future<void> createReactionNotification({
     required String postId,
     required String postTitle,
@@ -226,15 +208,11 @@ class NotificationService {
         referenceId: postId,
         senderId: currentUser?.id,
       );
-
-      // The createNotification method already updates the stream
-      // for the target user, so no need to call _updateUnreadCountStream here
     } catch (e) {
       print('Error creating reaction notification: $e');
     }
   }
 
-  // Convenience method for creating comment notification - UPDATED
   Future<void> createCommentNotification({
     required String postId,
     required String postTitle,
@@ -258,20 +236,15 @@ class NotificationService {
         referenceId: postId,
         senderId: currentUser?.id,
       );
-
-      // The createNotification method already updates the stream
-      // for the target user
     } catch (e) {
       print('Error creating comment notification: $e');
     }
   }
 
-  // Add method to manually refresh the stream (useful for testing)
   Future<void> refreshUnreadCount() async {
     await _updateUnreadCountStream();
   }
 
-  // Clean up stream controller
   void dispose() {
     if (!_unreadCountController.isClosed) {
       _unreadCountController.close();

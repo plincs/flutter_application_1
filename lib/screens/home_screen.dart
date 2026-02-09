@@ -32,10 +32,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   List<BlogPost> _recentBlogs = [];
   bool _isLoading = true;
-  bool _isDarkMode = false;
+  final bool _isDarkMode = false;
   OverlayEntry? _profileOverlayEntry;
   bool _showCreateBlogModal = false;
   final NotificationService _notificationService = NotificationService();
+  final BlogService _blogService = BlogService();
 
   @override
   void initState() {
@@ -53,18 +54,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadBlogs() async {
     try {
-      final blogService = BlogService();
-      final posts = await blogService.getBlogPosts();
+      final posts = await _blogService.getBlogPosts();
 
-      // Load recent posts
       if (mounted) {
         setState(() {
-          _recentBlogs = posts.take(3).toList(); // Take first 3 as recent
+          _recentBlogs = posts.take(3).toList();
           _isLoading = false;
         });
       }
     } catch (e) {
-      print('Error loading blogs: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -101,16 +99,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.primaryContainer, // ← FIXED
+                  color: Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(12),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
                       Theme.of(context).colorScheme.primaryContainer,
-                      Theme.of(context).colorScheme.background, // ← FIXED
+                      Theme.of(context).colorScheme.surface,
                     ],
                   ),
                 ),
@@ -129,7 +125,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.onPrimaryContainer, // ← FIXED
+                                ).colorScheme.onPrimaryContainer,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -140,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onPrimaryContainer
-                                    .withOpacity(0.8), // ← FIXED
+                                    .withOpacity(0.8),
                                 height: 1.5,
                               ),
                             ),
@@ -152,10 +148,10 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Theme.of(
                                   context,
-                                ).colorScheme.primary, // ← FIXED
+                                ).colorScheme.primary,
                                 foregroundColor: Theme.of(
                                   context,
-                                ).colorScheme.onPrimary, // ← FIXED
+                                ).colorScheme.onPrimary,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
@@ -163,7 +159,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: const Text('Write Your First Blog'),
                             ),
                           ] else ...[
-                            // For logged-out users
                             Text(
                               'First time in Aniblog?',
                               style: TextStyle(
@@ -171,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 fontWeight: FontWeight.bold,
                                 color: Theme.of(
                                   context,
-                                ).colorScheme.onPrimaryContainer, // ← FIXED
+                                ).colorScheme.onPrimaryContainer,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -182,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: Theme.of(context)
                                     .colorScheme
                                     .onPrimaryContainer
-                                    .withOpacity(0.8), // ← FIXED
+                                    .withOpacity(0.8),
                                 height: 1.5,
                               ),
                             ),
@@ -196,10 +191,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Theme.of(
                                       context,
-                                    ).colorScheme.primary, // ← FIXED
+                                    ).colorScheme.primary,
                                     foregroundColor: Theme.of(
                                       context,
-                                    ).colorScheme.onPrimary, // ← FIXED
+                                    ).colorScheme.onPrimary,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -214,12 +209,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: Theme.of(
                                       context,
-                                    ).colorScheme.primary, // ← FIXED
+                                    ).colorScheme.primary,
                                     side: BorderSide(
                                       color: Theme.of(
                                         context,
                                       ).colorScheme.primary,
-                                    ), // ← FIXED
+                                    ),
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
                                     ),
@@ -233,17 +228,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     const SizedBox(width: 20),
-                    // Blog stats or icon
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface, // ← FIXED
+                        color: Theme.of(context).colorScheme.surface,
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
                             color: Theme.of(
                               context,
-                            ).colorScheme.shadow.withOpacity(0.1), // ← FIXED
+                            ).colorScheme.shadow.withOpacity(0.1),
                             blurRadius: 10,
                             offset: const Offset(0, 4),
                           ),
@@ -258,7 +252,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 20),
 
-          // Featured Anime Slider
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: AnimeSlider(),
@@ -266,12 +259,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 20),
 
-          // Recent Articles Section
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surface, // ← FIXED
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(12),
               boxShadow: [
                 BoxShadow(
@@ -292,9 +284,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface, // ← FIXED
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     TextButton(
@@ -306,9 +296,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Text(
                         'Browse All',
                         style: TextStyle(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.primary, // Optional: make consistent
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
@@ -323,9 +311,18 @@ class _HomeScreenState extends State<HomeScreen> {
                         itemCount: _recentBlogs.length,
                         itemBuilder: (context, index) {
                           final blog = _recentBlogs[index];
+                          final authService = Provider.of<AuthService>(context);
+                          final isAuthor =
+                              authService.currentUser?.id == blog.userId;
+
                           return BlogCard(
                             blog: blog,
                             onTap: () => _viewBlogDetail(blog),
+                            onEdit: isAuthor ? () => _editBlog(blog) : null,
+                            onDelete: isAuthor
+                                ? () => _deleteBlog(blog.id)
+                                : null,
+                            onRefresh: _loadBlogs,
                           );
                         },
                       ),
@@ -379,19 +376,130 @@ class _HomeScreenState extends State<HomeScreen> {
           onClose: () {
             Navigator.pop(context);
           },
+          onBlogCreated: _loadBlogs,
         );
       },
     );
   }
 
-  // Show create blog modal in the center
+  void _editBlog(BlogPost blog) {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    if (currentUser == null || currentUser.id != blog.userId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can only edit your own blog posts'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    _showEditBlogModal(blog);
+  }
+
+  void _showEditBlogModal(BlogPost blog) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) {
+        return Theme(
+          data: Theme.of(context),
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            elevation: 0,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+              ),
+              child: EditBlogModal(
+                blog: blog,
+                onBlogUpdated: () {
+                  _loadBlogs();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Blog updated successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                onClose: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _deleteBlog(String blogId) {
+    final authService = context.read<AuthService>();
+    final currentUser = authService.currentUser;
+
+    final blog = _recentBlogs.firstWhere((b) => b.id == blogId);
+
+    if (currentUser == null || currentUser.id != blog.userId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You can only delete your own blog posts'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Blog'),
+        content: const Text('Are you sure you want to delete this blog post?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              try {
+                await _blogService.deleteBlogPost(blogId);
+                await _loadBlogs();
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Blog deleted successfully'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } catch (e) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error deleting blog: ${e.toString()}'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showCreateBlogModalDialog() {
     showDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.5),
       builder: (context) {
         return Theme(
-          // Wrap with Theme
           data: Theme.of(context),
           child: Dialog(
             shape: RoundedRectangleBorder(
@@ -402,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surface, // ← FIX THIS
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
@@ -419,6 +527,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: CreateBlogModal(
                 onBlogCreated: () {
                   _loadBlogs();
+                  Navigator.pop(context);
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                       content: Text('Blog published successfully!'),
@@ -437,7 +546,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Hide create blog modal
   void _hideCreateBlogModal() {
     if (_showCreateBlogModal) {
       setState(() {
@@ -446,89 +554,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // ADD THIS METHOD: Settings Dialog
-  void _showAppSettingsDialog(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
-    final authService = Provider.of<AuthService>(context, listen: false);
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('App Settings'),
-              content: SizedBox(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Dark Mode Toggle
-                    ListTile(
-                      leading: Icon(
-                        themeProvider.isDarkMode
-                            ? Icons.light_mode_rounded
-                            : Icons.dark_mode_rounded,
-                      ),
-                      title: Text(
-                        themeProvider.isDarkMode ? 'Light Mode' : 'Dark Mode',
-                      ),
-                      trailing: Switch(
-                        value: themeProvider.isDarkMode,
-                        onChanged: (value) {
-                          themeProvider.toggleTheme();
-                        },
-                      ),
-                    ),
-                    const Divider(height: 1),
-
-                    // Notifications Settings
-                    ListTile(
-                      leading: const Icon(Icons.notifications_rounded),
-                      title: const Text('Notifications'),
-                      trailing: Switch(
-                        value: authService.notificationsEnabled,
-                        onChanged: (value) async {
-                          await authService.updateNotificationSettings(
-                            notificationsEnabled: value,
-                          );
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                    const Divider(height: 1),
-
-                    // Email Notifications
-                    ListTile(
-                      leading: const Icon(Icons.email_rounded),
-                      title: const Text('Email Notifications'),
-                      trailing: Switch(
-                        value: authService.emailNotifications,
-                        onChanged: (value) async {
-                          await authService.updateNotificationSettings(
-                            emailNotifications: value,
-                          );
-                          setState(() {});
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  // Build notification popup menu
   Widget _buildNotificationPopup(BuildContext context) {
     return PopupMenuButton<String>(
       offset: const Offset(0, 50),
@@ -556,12 +581,9 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!authService.isAuthenticated) return const SizedBox.shrink();
 
         return Consumer<NotificationService>(
-          // Add Consumer for NotificationService
           builder: (context, notificationService, child) {
             return StreamBuilder<int>(
-              // Change FutureBuilder to StreamBuilder
-              stream: notificationService
-                  .unreadCountStream(), // Add this method to NotificationService
+              stream: notificationService.unreadCountStream(),
               initialData: 0,
               builder: (context, snapshot) {
                 final unreadCount = snapshot.data ?? 0;
@@ -618,12 +640,11 @@ class _HomeScreenState extends State<HomeScreen> {
     final userEmail = authService.currentUser?.email;
     final profilePhotoUrl = authService.profilePhotoUrl;
 
-    // FIXED: Use actual ProfileScreen instead of placeholder
     final screens = [
       _buildHomeContent(),
-      const BlogListScreen(),
-      _buildHomeContent(), // Create blog is now a modal
-      const ProfileScreen(), // This is the FIX - using actual ProfileScreen
+      BlogListScreen(onBlogCreated: _loadBlogs),
+      _buildHomeContent(),
+      const ProfileScreen(),
     ];
 
     return WillPopScope(
@@ -758,7 +779,6 @@ class _HomeScreenState extends State<HomeScreen> {
     String? userEmail,
     String? profilePhotoUrl,
   ) {
-    // Safe handling of empty userName
     final displayChar = userName.isNotEmpty
         ? userName.substring(0, 1).toUpperCase()
         : '?';
@@ -874,7 +894,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                         onSettingsTap: () {
                           _removeProfileDropdown();
-                          // Open app settings dialog instead of showing coming soon
                           _showAppSettingsDialog(context);
                         },
                         onLogoutTap: () {
@@ -883,8 +902,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                         onSignInTap: () {
                           _removeProfileDropdown();
-
-                          // Use rootNavigator: true to navigate from overlay
                           Navigator.of(
                             context,
                             rootNavigator: true,
@@ -915,6 +932,84 @@ class _HomeScreenState extends State<HomeScreen> {
       _profileOverlayEntry!.remove();
       _profileOverlayEntry = null;
     }
+  }
+
+  void _showAppSettingsDialog(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
+    final authService = Provider.of<AuthService>(context, listen: false);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('App Settings'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      leading: Icon(
+                        themeProvider.isDarkMode
+                            ? Icons.light_mode_rounded
+                            : Icons.dark_mode_rounded,
+                      ),
+                      title: Text(
+                        themeProvider.isDarkMode ? 'Light Mode' : 'Dark Mode',
+                      ),
+                      trailing: Switch(
+                        value: themeProvider.isDarkMode,
+                        onChanged: (value) {
+                          themeProvider.toggleTheme();
+                        },
+                      ),
+                    ),
+                    const Divider(height: 1),
+
+                    ListTile(
+                      leading: const Icon(Icons.notifications_rounded),
+                      title: const Text('Notifications'),
+                      trailing: Switch(
+                        value: authService.notificationsEnabled,
+                        onChanged: (value) async {
+                          await authService.updateNotificationSettings(
+                            notificationsEnabled: value,
+                          );
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                    const Divider(height: 1),
+
+                    ListTile(
+                      leading: const Icon(Icons.email_rounded),
+                      title: const Text('Email Notifications'),
+                      trailing: Switch(
+                        value: authService.emailNotifications,
+                        onChanged: (value) async {
+                          await authService.updateNotificationSettings(
+                            emailNotifications: value,
+                          );
+                          setState(() {});
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showLogoutDialog(BuildContext context, AuthService authService) {
@@ -961,7 +1056,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Notification dropdown content widget
 class _NotificationDropdownContent extends StatefulWidget {
   final NotificationService notificationService;
 
@@ -998,7 +1092,6 @@ class _NotificationDropdownContentState
         });
       }
     } catch (e) {
-      print('Error loading notifications: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -1043,45 +1136,12 @@ class _NotificationDropdownContentState
     final type = notification['type'] as String?;
     final referenceId = notification['reference_id'] as String?;
 
-    // Mark as read
     _markAsRead(notificationId);
 
-    // Handle navigation based on type
     if (type == 'reaction' || type == 'comment' || type == 'comment_reaction') {
       if (referenceId != null) {
-        // Close dropdown
         Navigator.pop(context);
-
-        // Navigate to the blog post
-        _navigateToBlogPost(referenceId);
       }
-    }
-  }
-
-  Future<void> _navigateToBlogPost(String postId) async {
-    try {
-      final blogService = BlogService();
-      final blog = await blogService.getBlogPost(postId);
-
-      // Show blog detail modal
-      showDialog(
-        context: context,
-        barrierColor: Colors.black.withOpacity(0.5),
-        builder: (context) {
-          return BlogDetailModal(
-            blog: blog,
-            onClose: () => Navigator.pop(context),
-          );
-        },
-      );
-    } catch (e) {
-      print('Error navigating to blog post: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Could not open the post: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
     }
   }
 
@@ -1156,7 +1216,6 @@ class _NotificationDropdownContentState
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -1200,7 +1259,6 @@ class _NotificationDropdownContentState
             ),
           ),
 
-          // Content
           Expanded(
             child: _isLoading
                 ? Center(
@@ -1275,7 +1333,6 @@ class _NotificationDropdownContentState
   }
 }
 
-// Notification popup item widget
 class _NotificationPopupItem extends StatelessWidget {
   final Map<String, dynamic> notification;
   final IconData icon;
@@ -1315,7 +1372,6 @@ class _NotificationPopupItem extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icon
               Container(
                 width: 36,
                 height: 36,
@@ -1327,7 +1383,6 @@ class _NotificationPopupItem extends StatelessWidget {
               ),
               const SizedBox(width: 12),
 
-              // Content
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1396,7 +1451,6 @@ class _NotificationPopupItem extends StatelessWidget {
                 ),
               ),
 
-              // Delete button (small X)
               IconButton(
                 icon: Icon(
                   Icons.close,
@@ -1415,8 +1469,6 @@ class _NotificationPopupItem extends StatelessWidget {
   }
 }
 
-// Create Blog Modal Widget
-// Create Blog Modal Widget
 class CreateBlogModal extends StatefulWidget {
   final VoidCallback? onBlogCreated;
   final VoidCallback? onClose;
@@ -1432,6 +1484,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final _storageService = StorageService();
+  final BlogService _blogService = BlogService();
   bool _isSubmitting = false;
   final List<XFile> _selectedImages = [];
   final List<String> _uploadedImageUrls = [];
@@ -1440,7 +1493,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
     try {
       showModalBottomSheet(
         context: context,
-        backgroundColor: Theme.of(context).colorScheme.surface, // ← ADD THIS
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
@@ -1451,12 +1504,12 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
               ListTile(
                 leading: Icon(
                   Icons.photo_library,
-                  color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 title: Text(
                   'Choose from Gallery',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 onTap: () async {
@@ -1472,12 +1525,12 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
               ListTile(
                 leading: Icon(
                   Icons.camera_alt,
-                  color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 title: Text(
                   'Take a Photo',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 onTap: () async {
@@ -1495,7 +1548,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
         ),
       );
     } catch (e) {
-      print('Error showing image picker: $e');
       final image = await _storageService.pickImageFromGallery();
       if (image != null) {
         setState(() {
@@ -1516,7 +1568,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
         );
         _uploadedImageUrls.add(imageUrl);
       } catch (e) {
-        print('Error uploading image: $e');
         rethrow;
       }
     }
@@ -1534,8 +1585,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
         await _uploadImages();
       }
 
-      final blogService = BlogService();
-      await blogService.createBlogPost(
+      await _blogService.createBlogPost(
         title: _titleController.text,
         content: _contentController.text,
         imageUrls: _uploadedImageUrls,
@@ -1544,23 +1594,11 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
       if (widget.onBlogCreated != null) {
         widget.onBlogCreated!();
       }
-
-      if (widget.onClose != null) {
-        widget.onClose!();
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Blog published successfully!'),
-          backgroundColor: Theme.of(context).colorScheme.primary, // ← FIX
-        ),
-      );
     } catch (e) {
-      print('Error creating blog: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
-          backgroundColor: Theme.of(context).colorScheme.error, // ← FIX
+          backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     } finally {
@@ -1596,13 +1634,13 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
               ),
               IconButton(
                 icon: Icon(
                   Icons.close,
-                  color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 onPressed: () {
                   if (widget.onClose != null) {
@@ -1620,36 +1658,36 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                 TextFormField(
                   controller: _titleController,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Blog Title',
                     labelStyle: TextStyle(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.7), // ← FIX
+                      ).colorScheme.onSurface.withOpacity(0.7),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline, // ← FIX
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline, // ← FIX
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary, // ← FIX
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     hintText: 'Enter a title...',
                     hintStyle: TextStyle(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.5), // ← FIX
+                      ).colorScheme.onSurface.withOpacity(0.5),
                     ),
                   ),
                   validator: (value) {
@@ -1667,36 +1705,36 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                 TextFormField(
                   controller: _contentController,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                   decoration: InputDecoration(
                     labelText: 'Blog Content',
                     labelStyle: TextStyle(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.7), // ← FIX
+                      ).colorScheme.onSurface.withOpacity(0.7),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline, // ← FIX
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.outline, // ← FIX
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderSide: BorderSide(
-                        color: Theme.of(context).colorScheme.primary, // ← FIX
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     hintText: 'Write your blog content here...',
                     hintStyle: TextStyle(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.5), // ← FIX
+                      ).colorScheme.onSurface.withOpacity(0.5),
                     ),
                     alignLabelWithHint: true,
                   ),
@@ -1713,7 +1751,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                   maxLength: 5000,
                 ),
 
-                // Image upload section
                 const SizedBox(height: 16),
                 Row(
                   children: [
@@ -1722,7 +1759,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const Spacer(),
@@ -1730,19 +1767,18 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                       onPressed: _pickImage,
                       icon: Icon(
                         Icons.add_photo_alternate,
-                        color: Theme.of(context).colorScheme.primary, // ← FIX
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                       label: Text(
                         'Add Image',
                         style: TextStyle(
-                          color: Theme.of(context).colorScheme.primary, // ← FIX
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                       ),
                     ),
                   ],
                 ),
 
-                // Selected images preview
                 if (_selectedImages.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Text(
@@ -1750,7 +1786,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                     style: TextStyle(
                       color: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withOpacity(0.6), // ← FIX
+                      ).colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1769,11 +1805,9 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                               borderRadius: BorderRadius.circular(8),
                               color: Theme.of(
                                 context,
-                              ).colorScheme.surface.withOpacity(0.5), // ← FIX
+                              ).colorScheme.surface.withOpacity(0.5),
                               border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.outline, // ← FIX
+                                color: Theme.of(context).colorScheme.outline,
                               ),
                             ),
                             child: Stack(
@@ -1788,7 +1822,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurface
-                                            .withOpacity(0.4), // ← FIX
+                                            .withOpacity(0.4),
                                       ),
                                       Text(
                                         'Image ${index + 1}',
@@ -1796,7 +1830,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                                           color: Theme.of(context)
                                               .colorScheme
                                               .onSurface
-                                              .withOpacity(0.6), // ← FIX
+                                              .withOpacity(0.6),
                                         ),
                                       ),
                                     ],
@@ -1809,10 +1843,9 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                                     onTap: () => _removeImage(index),
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surface
-                                            .withOpacity(0.8), // ← FIX
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surface.withOpacity(0.8),
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
@@ -1820,7 +1853,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                                         size: 20,
                                         color: Theme.of(
                                           context,
-                                        ).colorScheme.onSurface, // ← FIX
+                                        ).colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
@@ -1841,12 +1874,8 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                   child: ElevatedButton(
                     onPressed: _isSubmitting ? null : _submitBlog,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primary, // ← FIX
-                      foregroundColor: Theme.of(
-                        context,
-                      ).colorScheme.onPrimary, // ← FIX
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: _isSubmitting
@@ -1874,11 +1903,9 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                       }
                     },
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Theme.of(
-                        context,
-                      ).colorScheme.onSurface, // ← FIX
+                      foregroundColor: Theme.of(context).colorScheme.onSurface,
                       side: BorderSide(
-                        color: Theme.of(context).colorScheme.outline, // ← FIX
+                        color: Theme.of(context).colorScheme.outline,
                       ),
                     ),
                     child: const Text('Cancel'),
@@ -1900,8 +1927,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
   }
 }
 
-// Edit Blog Modal Widget
-// Edit Blog Modal Widget
 class EditBlogModal extends StatefulWidget {
   final BlogPost blog;
   final VoidCallback onBlogUpdated;
@@ -1931,7 +1956,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
   @override
   void initState() {
     super.initState();
-    // Initialize with existing blog data
     _titleController.text = widget.blog.title;
     _contentController.text = widget.blog.content;
     _existingImageUrls = widget.blog.imageUrls ?? [];
@@ -1941,7 +1965,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
     try {
       showModalBottomSheet(
         context: context,
-        backgroundColor: Theme.of(context).colorScheme.surface, // ← ADD THIS
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
@@ -1952,14 +1976,12 @@ class _EditBlogModalState extends State<EditBlogModal> {
               ListTile(
                 leading: Icon(
                   Icons.photo_library,
-                  color: Theme.of(context).colorScheme.onSurface, // ← ADD THIS
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 title: Text(
                   'Choose from Gallery',
                   style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface, // ← ADD THIS
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 onTap: () async {
@@ -1975,14 +1997,12 @@ class _EditBlogModalState extends State<EditBlogModal> {
               ListTile(
                 leading: Icon(
                   Icons.camera_alt,
-                  color: Theme.of(context).colorScheme.onSurface, // ← ADD THIS
+                  color: Theme.of(context).colorScheme.onSurface,
                 ),
                 title: Text(
                   'Take a Photo',
                   style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurface, // ← ADD THIS
+                    color: Theme.of(context).colorScheme.onSurface,
                   ),
                 ),
                 onTap: () async {
@@ -2000,7 +2020,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
         ),
       );
     } catch (e) {
-      print('Error showing image picker: $e');
       final image = await _storageService.pickImageFromGallery();
       if (image != null) {
         setState(() {
@@ -2021,7 +2040,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
         );
         _uploadedImageUrls.add(imageUrl);
       } catch (e) {
-        print('Error uploading image: $e');
         rethrow;
       }
     }
@@ -2035,12 +2053,10 @@ class _EditBlogModalState extends State<EditBlogModal> {
     });
 
     try {
-      // Upload new images first
       if (_selectedImages.isNotEmpty) {
         await _uploadImages();
       }
 
-      // Combine existing and new image URLs
       final allImageUrls = [..._existingImageUrls, ..._uploadedImageUrls];
 
       final blogService = BlogService();
@@ -2051,20 +2067,10 @@ class _EditBlogModalState extends State<EditBlogModal> {
         imageUrls: allImageUrls,
       );
 
-      // Success
       widget.onBlogUpdated();
 
-      // Close modal
       widget.onClose();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Blog updated successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
     } catch (e) {
-      print('Error updating blog: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -2097,7 +2103,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -2115,13 +2120,13 @@ class _EditBlogModalState extends State<EditBlogModal> {
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.onPrimary, // ← FIX
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                 ),
                 IconButton(
                   icon: Icon(
                     Icons.close,
-                    color: Theme.of(context).colorScheme.onPrimary, // ← FIX
+                    color: Theme.of(context).colorScheme.onPrimary,
                   ),
                   onPressed: widget.onClose,
                 ),
@@ -2130,7 +2135,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
           ),
           const SizedBox(height: 16),
 
-          // Content
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Form(
@@ -2140,24 +2144,24 @@ class _EditBlogModalState extends State<EditBlogModal> {
                   TextFormField(
                     controller: _titleController,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     decoration: InputDecoration(
                       labelText: 'Blog Title',
                       labelStyle: TextStyle(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.7), // ← FIX
+                        ).colorScheme.onSurface.withOpacity(0.7),
                       ),
                       border: const OutlineInputBorder(),
                       hintText: 'Enter a title...',
                       hintStyle: TextStyle(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.5), // ← FIX
+                        ).colorScheme.onSurface.withOpacity(0.5),
                       ),
                       filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface, // ← FIX
+                      fillColor: Theme.of(context).colorScheme.surface,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -2174,25 +2178,25 @@ class _EditBlogModalState extends State<EditBlogModal> {
                   TextFormField(
                     controller: _contentController,
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                     decoration: InputDecoration(
                       labelText: 'Blog Content',
                       labelStyle: TextStyle(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.7), // ← FIX
+                        ).colorScheme.onSurface.withOpacity(0.7),
                       ),
                       border: const OutlineInputBorder(),
                       hintText: 'Write your blog content here...',
                       hintStyle: TextStyle(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.5), // ← FIX
+                        ).colorScheme.onSurface.withOpacity(0.5),
                       ),
                       alignLabelWithHint: true,
                       filled: true,
-                      fillColor: Theme.of(context).colorScheme.surface, // ← FIX
+                      fillColor: Theme.of(context).colorScheme.surface,
                     ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -2207,7 +2211,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
                     maxLength: 5000,
                   ),
 
-                  // Existing images
                   if (_existingImageUrls.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Text(
@@ -2215,7 +2218,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurface, // ← FIX
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -2237,7 +2240,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                                     border: Border.all(
                                       color: Theme.of(
                                         context,
-                                      ).colorScheme.outline, // ← FIX
+                                      ).colorScheme.outline,
                                     ),
                                     image: DecorationImage(
                                       image: NetworkImage(
@@ -2254,10 +2257,9 @@ class _EditBlogModalState extends State<EditBlogModal> {
                                     onTap: () => _removeExistingImage(index),
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .surface
-                                            .withOpacity(0.8), // ← FIX
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.surface.withOpacity(0.8),
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
@@ -2265,7 +2267,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                                         size: 20,
                                         color: Theme.of(
                                           context,
-                                        ).colorScheme.onSurface, // ← FIX
+                                        ).colorScheme.onSurface,
                                       ),
                                     ),
                                   ),
@@ -2279,7 +2281,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
                     const SizedBox(height: 16),
                   ],
 
-                  // Image upload section
                   const SizedBox(height: 16),
                   Row(
                     children: [
@@ -2288,9 +2289,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface, // ← FIX
+                          color: Theme.of(context).colorScheme.onSurface,
                         ),
                       ),
                       const Spacer(),
@@ -2298,21 +2297,18 @@ class _EditBlogModalState extends State<EditBlogModal> {
                         onPressed: _pickImage,
                         icon: Icon(
                           Icons.add_photo_alternate,
-                          color: Theme.of(context).colorScheme.primary, // ← FIX
+                          color: Theme.of(context).colorScheme.primary,
                         ),
                         label: Text(
                           'Add Image',
                           style: TextStyle(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primary, // ← FIX
+                            color: Theme.of(context).colorScheme.primary,
                           ),
                         ),
                       ),
                     ],
                   ),
 
-                  // Selected new images preview
                   if (_selectedImages.isNotEmpty) ...[
                     const SizedBox(height: 8),
                     Text(
@@ -2320,7 +2316,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                       style: TextStyle(
                         color: Theme.of(
                           context,
-                        ).colorScheme.onSurface.withOpacity(0.6), // ← FIX
+                        ).colorScheme.onSurface.withOpacity(0.6),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -2337,13 +2333,9 @@ class _EditBlogModalState extends State<EditBlogModal> {
                               height: 100,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.surface, // ← FIX
+                                color: Theme.of(context).colorScheme.surface,
                                 border: Border.all(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.outline, // ← FIX
+                                  color: Theme.of(context).colorScheme.outline,
                                 ),
                               ),
                               child: Stack(
@@ -2359,7 +2351,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                                           color: Theme.of(context)
                                               .colorScheme
                                               .onSurface
-                                              .withOpacity(0.4), // ← FIX
+                                              .withOpacity(0.4),
                                         ),
                                         Text(
                                           'New ${index + 1}',
@@ -2367,7 +2359,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .onSurface
-                                                .withOpacity(0.6), // ← FIX
+                                                .withOpacity(0.6),
                                           ),
                                         ),
                                       ],
@@ -2383,7 +2375,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                                           color: Theme.of(context)
                                               .colorScheme
                                               .surface
-                                              .withOpacity(0.8), // ← FIX
+                                              .withOpacity(0.8),
                                           shape: BoxShape.circle,
                                         ),
                                         child: Icon(
@@ -2391,7 +2383,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                                           size: 20,
                                           color: Theme.of(
                                             context,
-                                          ).colorScheme.onSurface, // ← FIX
+                                          ).colorScheme.onSurface,
                                         ),
                                       ),
                                     ),
@@ -2412,12 +2404,10 @@ class _EditBlogModalState extends State<EditBlogModal> {
                     child: ElevatedButton(
                       onPressed: _isSubmitting ? null : _submitUpdate,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(
-                          context,
-                        ).colorScheme.primary, // ← FIX
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                         foregroundColor: Theme.of(
                           context,
-                        ).colorScheme.onPrimary, // ← FIX
+                        ).colorScheme.onPrimary,
                         padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
                       child: _isSubmitting
@@ -2442,11 +2432,11 @@ class _EditBlogModalState extends State<EditBlogModal> {
                       onPressed: widget.onClose,
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(
-                          color: Theme.of(context).colorScheme.outline, // ← FIX
+                          color: Theme.of(context).colorScheme.outline,
                         ),
                         foregroundColor: Theme.of(
                           context,
-                        ).colorScheme.onSurface, // ← FIX
+                        ).colorScheme.onSurface,
                       ),
                       child: const Text('Cancel'),
                     ),
@@ -2468,380 +2458,17 @@ class _EditBlogModalState extends State<EditBlogModal> {
   }
 }
 
-// Edit Comment Modal Widget
-class EditCommentModal extends StatefulWidget {
-  final Comment comment;
-  final VoidCallback onCommentUpdated;
-  final VoidCallback onClose;
-
-  const EditCommentModal({
-    super.key,
-    required this.comment,
-    required this.onCommentUpdated,
-    required this.onClose,
-  });
-
-  @override
-  State<EditCommentModal> createState() => _EditCommentModalState();
-}
-
-class _EditCommentModalState extends State<EditCommentModal> {
-  final _commentController = TextEditingController();
-  final _storageService = StorageService();
-  final _blogService = BlogService();
-  bool _isSubmitting = false;
-  XFile? _newCommentImage;
-  String? _existingImageUrl;
-
-  @override
-  void initState() {
-    super.initState();
-    // Initialize with existing comment data
-    _commentController.text = widget.comment.content ?? '';
-    _existingImageUrl = widget.comment.imageUrl;
-  }
-
-  Future<void> _pickCommentImage() async {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-                final image = await _storageService.pickImageFromGallery();
-                if (image != null) {
-                  setState(() {
-                    _newCommentImage = image;
-                  });
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take a Photo'),
-              onTap: () async {
-                Navigator.pop(context);
-                final image = await _storageService.pickImageFromCamera();
-                if (image != null) {
-                  setState(() {
-                    _newCommentImage = image;
-                  });
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _removeExistingImage() {
-    setState(() {
-      _existingImageUrl = null;
-    });
-  }
-
-  void _removeNewImage() {
-    setState(() {
-      _newCommentImage = null;
-    });
-  }
-
-  Future<void> _submitUpdate() async {
-    // Check if there's either text or image
-    if (_commentController.text.trim().isEmpty &&
-        _existingImageUrl == null &&
-        _newCommentImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add text or an image to comment'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isSubmitting = true;
-    });
-
-    try {
-      String? imageUrl = _existingImageUrl;
-
-      // Upload new comment image if exists
-      if (_newCommentImage != null) {
-        imageUrl = await _storageService.uploadImage(
-          bucket: 'comment-images',
-          imageFile: _newCommentImage!,
-        );
-      }
-
-      // Update comment - content can be null if only image
-      final content = _commentController.text.trim();
-      await _blogService.updateComment(
-        id: widget.comment.id,
-        content: content.isNotEmpty ? content : null,
-        imageUrl: imageUrl,
-      );
-
-      // Success
-      widget.onCommentUpdated();
-
-      // Close modal
-      widget.onClose();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Comment updated successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      print('Error updating comment: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isSubmitting = false;
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Edit Comment',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: widget.onClose,
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-
-          Column(
-            children: [
-              // Comment text input
-              // In EditCommentModal build method
-              Container(
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.surfaceVariant, // ← CHANGE
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.outline.withOpacity(0.3), // ← CHANGE
-                  ),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: TextField(
-                  controller: _commentController,
-                  decoration: InputDecoration(
-                    hintText: 'Edit your comment...',
-                    hintStyle: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant
-                          .withOpacity(0.6), // ← CHANGE
-                    ),
-                    border: InputBorder.none,
-                  ),
-                  style: TextStyle(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.onSurfaceVariant, // ← CHANGE
-                  ),
-                  maxLines: 3,
-                  minLines: 1,
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // Existing image
-              if (_existingImageUrl != null &&
-                  _existingImageUrl!.isNotEmpty) ...[
-                const Text(
-                  'Existing Image:',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 8),
-                Stack(
-                  children: [
-                    Container(
-                      height: 150,
-                      width: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: NetworkImage(_existingImageUrl!),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: GestureDetector(
-                        onTap: _removeExistingImage,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              // Add new image button
-              Row(
-                children: [
-                  const Text(
-                    'Change Image:',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                  ),
-                  const Spacer(),
-                  TextButton.icon(
-                    onPressed: _pickCommentImage,
-                    icon: const Icon(Icons.add_photo_alternate),
-                    label: const Text('Add/Change Image'),
-                  ),
-                ],
-              ),
-
-              // New image preview
-              if (_newCommentImage != null) ...[
-                const SizedBox(height: 8),
-                Stack(
-                  children: [
-                    Container(
-                      height: 150,
-                      width: 150,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8),
-                        color: Colors.grey[200],
-                        border: Border.all(color: Colors.grey[300]!),
-                      ),
-                      child: Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.image,
-                              size: 40,
-                              color: Colors.grey[400],
-                            ),
-                            Text(
-                              'New Image',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      top: 4,
-                      right: 4,
-                      child: GestureDetector(
-                        onTap: _removeNewImage,
-                        child: Container(
-                          decoration: const BoxDecoration(
-                            color: Colors.black54,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(
-                            Icons.close,
-                            size: 20,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-              ],
-
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _submitUpdate,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Update Comment',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: widget.onClose,
-                  child: const Text('Cancel'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    super.dispose();
-  }
-}
-
-// Blog Detail Modal with comments
 class BlogDetailModal extends StatefulWidget {
   final BlogPost blog;
   final VoidCallback onClose;
+  final VoidCallback? onBlogCreated;
 
-  const BlogDetailModal({super.key, required this.blog, required this.onClose});
+  const BlogDetailModal({
+    super.key,
+    required this.blog,
+    required this.onClose,
+    this.onBlogCreated,
+  });
 
   @override
   State<BlogDetailModal> createState() => _BlogDetailModalState();
@@ -2850,7 +2477,7 @@ class BlogDetailModal extends StatefulWidget {
 class _BlogDetailModalState extends State<BlogDetailModal> {
   final _commentController = TextEditingController();
   final _storageService = StorageService();
-  final _blogService = BlogService();
+  final BlogService _blogService = BlogService();
   bool _isSubmitting = false;
   XFile? _commentImage;
   List<Comment> _comments = [];
@@ -2867,9 +2494,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
       setState(() {
         _comments = comments;
       });
-    } catch (e) {
-      print('Error loading comments: $e');
-    }
+    } catch (e) {}
   }
 
   Future<void> _pickCommentImage() async {
@@ -2918,7 +2543,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
   }
 
   Future<void> _submitComment() async {
-    // Check if there's either text or image
     if (_commentController.text.trim().isEmpty && _commentImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -2936,7 +2560,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     try {
       String? imageUrl;
 
-      // Upload comment image if exists
       if (_commentImage != null) {
         imageUrl = await _storageService.uploadImage(
           bucket: 'comment-images',
@@ -2944,7 +2567,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         );
       }
 
-      // Create comment - content can be null if only image
       final content = _commentController.text.trim();
       await _blogService.createComment(
         postId: widget.blog.id,
@@ -2952,10 +2574,8 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         imageUrl: imageUrl,
       );
 
-      // Refresh comments
       await _loadComments();
 
-      // Clear form
       _commentController.clear();
       setState(() {
         _commentImage = null;
@@ -2968,7 +2588,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         ),
       );
     } catch (e) {
-      print('Error adding comment: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -2982,137 +2601,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     }
   }
 
-  Future<void> _deleteComment(String commentId) async {
-    try {
-      // First, get the comment to check if it has an image
-      final comment = _comments.firstWhere((c) => c.id == commentId);
-
-      // Delete the comment
-      await _blogService.deleteComment(commentId);
-
-      // If comment has an image, try to delete it from storage
-      if (comment.imageUrl != null && comment.imageUrl!.isNotEmpty) {
-        try {
-          await _storageService.deleteCommentImage(comment.imageUrl!);
-        } catch (e) {
-          print('Error deleting comment image: $e');
-          // Don't fail the whole operation if image deletion fails
-        }
-      }
-
-      // Refresh comments
-      await _loadComments();
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Comment deleted!'),
-          backgroundColor: Colors.green,
-        ),
-      );
-    } catch (e) {
-      print('Error deleting comment: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _showEditBlogModal(BlogPost blog) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) {
-        return Theme(
-          data: Theme.of(context), // ← ADD THIS
-          child: Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.background, // ← ADD THIS
-            elevation: 0,
-            child: Container(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.8,
-                maxWidth: MediaQuery.of(context).size.width * 0.9,
-              ),
-              child: EditBlogModal(
-                blog: blog,
-                onBlogUpdated: () {
-                  // Refresh the blog details and comments
-                  _loadComments();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Blog updated successfully!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                onClose: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showEditCommentModal(Comment comment) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          child: Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 20,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.of(context).size.height * 0.8,
-              maxWidth: MediaQuery.of(context).size.width * 0.9,
-            ),
-            child: EditCommentModal(
-              comment: comment,
-              onCommentUpdated: () {
-                // Refresh comments
-                _loadComments();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Comment updated successfully!'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              onClose: () {
-                Navigator.pop(context);
-              },
-            ),
-          ),
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -3124,7 +2612,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         ),
         child: Column(
           children: [
-            // Header
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -3136,7 +2623,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                   ),
                   Row(
                     children: [
-                      // Show edit button only for blog author
                       Consumer<AuthService>(
                         builder: (context, authService, child) {
                           final isAuthor =
@@ -3145,7 +2631,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                             return IconButton(
                               icon: const Icon(Icons.edit, color: Colors.blue),
                               onPressed: () {
-                                Navigator.pop(context); // Close current modal
+                                Navigator.pop(context);
                                 _showEditBlogModal(widget.blog);
                               },
                             );
@@ -3163,14 +2649,12 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
               ),
             ),
 
-            // Blog content
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Blog title
                     Text(
                       widget.blog.title,
                       style: const TextStyle(
@@ -3180,7 +2664,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Author info - FIXED: Safe substring
                     Row(
                       children: [
                         CircleAvatar(
@@ -3238,14 +2721,12 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Blog content
                     Text(
                       widget.blog.content,
                       style: const TextStyle(fontSize: 16, height: 1.6),
                     ),
                     const SizedBox(height: 24),
 
-                    // Blog images - SINGLE IMAGE CENTERED, MULTIPLE IN GRID
                     if (widget.blog.imageUrls.isNotEmpty) ...[
                       const Text(
                         'Images:',
@@ -3256,7 +2737,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                       ),
                       const SizedBox(height: 12),
 
-                      // If only one image, center it
                       if (widget.blog.imageUrls.length == 1) ...[
                         Center(
                           child: Container(
@@ -3306,7 +2786,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                           ),
                         ),
                       ] else ...[
-                        // Multiple images in grid
                         GridView.builder(
                           physics: const NeverScrollableScrollPhysics(),
                           shrinkWrap: true,
@@ -3340,23 +2819,20 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                       const SizedBox(height: 24),
                     ],
 
-                    // Comments section
-                    // Find this section in BlogDetailModal (around line 2450-2500)
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Comment input
                         Container(
                           decoration: BoxDecoration(
                             color: Theme.of(
                               context,
-                            ).colorScheme.surfaceVariant, // ← CHANGE THIS
+                            ).colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                               color: Theme.of(
                                 context,
                               ).colorScheme.outline.withOpacity(0.3),
-                            ), // ← CHANGE
+                            ),
                           ),
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           child: Row(
@@ -3371,14 +2847,14 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                       color: Theme.of(context)
                                           .colorScheme
                                           .onSurfaceVariant
-                                          .withOpacity(0.6), // ← CHANGE
+                                          .withOpacity(0.6),
                                     ),
                                     border: InputBorder.none,
                                   ),
                                   style: TextStyle(
                                     color: Theme.of(
                                       context,
-                                    ).colorScheme.onSurfaceVariant, // ← CHANGE
+                                    ).colorScheme.onSurfaceVariant,
                                   ),
                                   maxLines: 3,
                                   minLines: 1,
@@ -3387,9 +2863,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                               IconButton(
                                 icon: Icon(
                                   Icons.image,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.primary, // ← CHANGE
+                                  color: Theme.of(context).colorScheme.primary,
                                 ),
                                 onPressed: _pickCommentImage,
                               ),
@@ -3398,7 +2872,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         ),
                         const SizedBox(height: 8),
 
-                        // Comment image preview
                         if (_commentImage != null) ...[
                           Container(
                             height: 100,
@@ -3407,10 +2880,11 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                               borderRadius: BorderRadius.circular(8),
                               color: Theme.of(
                                 context,
-                              ).colorScheme.surfaceVariant, // ← CHANGE
+                              ).colorScheme.surfaceContainerHighest,
                               border: Border.all(
-                                color: Theme.of(context).colorScheme.outline
-                                    .withOpacity(0.3), // ← CHANGE
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outline.withOpacity(0.3),
                               ),
                             ),
                             child: Stack(
@@ -3425,7 +2899,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                         color: Theme.of(context)
                                             .colorScheme
                                             .onSurfaceVariant
-                                            .withOpacity(0.4), // ← CHANGE
+                                            .withOpacity(0.4),
                                       ),
                                       Text(
                                         'Selected',
@@ -3433,7 +2907,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                           color: Theme.of(context)
                                               .colorScheme
                                               .onSurfaceVariant
-                                              .withOpacity(0.6), // ← CHANGE
+                                              .withOpacity(0.6),
                                         ),
                                       ),
                                     ],
@@ -3446,17 +2920,17 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                     onTap: _removeCommentImage,
                                     child: Container(
                                       decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .errorContainer, // ← CHANGE
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.errorContainer,
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
                                         Icons.close,
                                         size: 16,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onErrorContainer, // ← CHANGE
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onErrorContainer,
                                       ),
                                     ),
                                   ),
@@ -3474,10 +2948,10 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Theme.of(
                                 context,
-                              ).colorScheme.primary, // ← CHANGE
+                              ).colorScheme.primary,
                               foregroundColor: Theme.of(
                                 context,
-                              ).colorScheme.onPrimary, // ← CHANGE
+                              ).colorScheme.onPrimary,
                             ),
                             child: _isSubmitting
                                 ? const SizedBox(
@@ -3497,7 +2971,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Comments list
                     if (_comments.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(32),
@@ -3535,12 +3008,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                   authService.currentUser?.id == comment.userId;
                               return CommentCard(
                                 comment: comment,
-                                onDelete: isCommentAuthor
-                                    ? () => _deleteComment(comment.id)
-                                    : null,
-                                onEdit: isCommentAuthor
-                                    ? () => _showEditCommentModal(comment)
-                                    : null,
                                 showActions: isCommentAuthor,
                               );
                             },
@@ -3554,6 +3021,49 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
           ],
         ),
       ),
+    );
+  }
+
+  void _showEditBlogModal(BlogPost blog) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (context) {
+        return Theme(
+          data: Theme.of(context),
+          child: Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            elevation: 0,
+            child: Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                maxWidth: MediaQuery.of(context).size.width * 0.9,
+              ),
+              child: EditBlogModal(
+                blog: blog,
+                onBlogUpdated: () {
+                  _loadComments();
+                  if (widget.onBlogCreated != null) {
+                    widget.onBlogCreated!();
+                  }
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Blog updated successfully!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                onClose: () {
+                  Navigator.pop(context);
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -3649,7 +3159,6 @@ class BlogSearchDelegate extends SearchDelegate<String> {
       return _buildEmptySuggestions(context);
     }
 
-    // Debounce search
     if (_debounceTimer?.isActive ?? false) {
       _debounceTimer?.cancel();
     }
@@ -3713,7 +3222,6 @@ class BlogSearchDelegate extends SearchDelegate<String> {
 
             const SizedBox(height: 24),
 
-            // Search tips section
             const Text(
               'Search Tips',
               style: TextStyle(
@@ -3796,9 +3304,7 @@ class BlogSearchDelegate extends SearchDelegate<String> {
         return BlogCard(
           blog: blog,
           onTap: () {
-            // Close search first
             close(context, '');
-            // Then show blog detail modal
             WidgetsBinding.instance.addPostFrameCallback((_) {
               showDialog(
                 context: context,
@@ -3864,15 +3370,11 @@ class BlogSearchDelegate extends SearchDelegate<String> {
       return;
     }
 
-    // Set loading state
     _isLoading = true;
     print('   Set isLoading = true');
 
-    // Update the UI immediately to show loading
-    // We need to trigger a rebuild
     if (context.mounted) {
       print('   Triggering UI rebuild for loading state');
-      // Force the search delegate to rebuild
       showResults(context);
     }
 
@@ -3881,12 +3383,10 @@ class BlogSearchDelegate extends SearchDelegate<String> {
       final results = await _searchService.searchBlogs(query);
       print('   Search returned ${results.length} results');
 
-      // Update state
       _searchResults = results;
       _isLoading = false;
       print('   Set isLoading = false, results = ${results.length}');
 
-      // Force UI to rebuild with new results
       if (context.mounted) {
         print('   Triggering UI rebuild with results');
         showResults(context);
@@ -3899,11 +3399,9 @@ class BlogSearchDelegate extends SearchDelegate<String> {
       _searchResults = [];
       print('   Set isLoading = false, cleared results due to error');
 
-      // Force UI to rebuild with error state
       if (context.mounted) {
         showResults(context);
 
-        // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Search failed: ${e.toString()}'),

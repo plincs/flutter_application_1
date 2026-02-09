@@ -14,7 +14,6 @@ class SupabaseAuthService {
   Stream<AppAuthState> get authStateChanges async* {
     yield const AppAuthState(isLoading: true);
 
-    // Get initial session
     final session = _supabase.auth.currentSession;
     AppUser? user;
 
@@ -24,7 +23,6 @@ class SupabaseAuthService {
 
     yield AppAuthState(isLoading: false, user: user);
 
-    // Listen for auth changes
     await for (final authState in _supabase.auth.onAuthStateChange) {
       if (authState.session != null) {
         final profile = await _getUserProfile(authState.session!.user.id);
@@ -45,10 +43,9 @@ class SupabaseAuthService {
           .timeout(const Duration(seconds: 5));
 
       return AppUser.fromJson(response);
-        } catch (e) {
+    } catch (e) {
       print('Error getting user profile: $e');
 
-      // If profile doesn't exist, create one from auth data
       final user = _supabase.auth.currentUser;
       if (user != null) {
         return AppUser(
@@ -71,7 +68,6 @@ class SupabaseAuthService {
     required String displayName,
   }) async {
     try {
-      // Sign up with Supabase Auth
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
@@ -79,7 +75,6 @@ class SupabaseAuthService {
       );
 
       if (response.user != null) {
-        // Create user profile in users table
         await _supabase.from('users').insert({
           'id': response.user!.id,
           'email': email,
@@ -123,7 +118,6 @@ class SupabaseAuthService {
       final updates = <String, dynamic>{};
       if (displayName != null) {
         updates['display_name'] = displayName;
-        // Also update in auth metadata
         await _supabase.auth.updateUser(
           UserAttributes(data: {'full_name': displayName}),
         );

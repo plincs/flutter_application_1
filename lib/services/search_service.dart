@@ -14,7 +14,6 @@ class SearchService {
 
       final searchLower = query.toLowerCase();
 
-      // Get all blog posts with user info
       final response = await _supabase
           .from('blog_posts')
           .select('''
@@ -28,17 +27,12 @@ class SearchService {
           ''')
           .order('created_at', ascending: false);
 
-      if (response == null) {
-        return [];
-      }
-
       final allPosts = (response as List).cast<Map<String, dynamic>>();
 
       if (allPosts.isEmpty) {
         return [];
       }
 
-      // Filter by search query
       final filteredPosts = allPosts.where((post) {
         final title = (post['title'] as String?)?.toLowerCase() ?? '';
         final content = (post['content'] as String?)?.toLowerCase() ?? '';
@@ -47,11 +41,9 @@ class SearchService {
 
       print('Found ${filteredPosts.length} matching posts for "$query"');
 
-      // Convert to BlogPost objects
       return filteredPosts.map((post) {
         final usersData = post['users'] as Map<String, dynamic>?;
 
-        // Create JSON that matches your BlogPost structure
         final json = <String, dynamic>{
           'id': post['id'] as String? ?? '',
           'user_id': post['user_id'] as String? ?? '',
@@ -69,7 +61,6 @@ class SearchService {
           'current_user_reaction': null,
         };
 
-        // Add author info - use the field names from your debug output
         if (usersData != null) {
           json['author_name'] =
               usersData['display_name'] as String? ?? 'Unknown';
@@ -85,7 +76,6 @@ class SearchService {
           print('Error creating BlogPost: $e');
           print('JSON: $json');
 
-          // Fallback: create BlogPost manually
           return BlogPost(
             id: json['id'] as String,
             userId: json['user_id'] as String,
@@ -115,10 +105,6 @@ class SearchService {
           .select('title')
           .order('created_at', ascending: false)
           .limit(5);
-
-      if (response == null) {
-        return [];
-      }
 
       final titles = (response as List).cast<Map<String, dynamic>>();
       return titles.map((item) => item['title'] as String).toList();

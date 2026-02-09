@@ -1,4 +1,3 @@
-// widgets/profile_menu_dropdown.dart
 import 'package:flutter/material.dart';
 
 class ProfileMenuDropdown extends StatelessWidget {
@@ -206,7 +205,7 @@ class ProfileMenuDropdown extends StatelessWidget {
         trailing: Switch(
           value: isDarkMode,
           onChanged: (value) => onThemeToggle(),
-          activeColor: Theme.of(context).colorScheme.primary,
+          activeThumbColor: Theme.of(context).colorScheme.primary,
           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         onTap: () {},

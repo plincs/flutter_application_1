@@ -13,7 +13,7 @@ import '../../services/notification_service.dart';
 class BlogDetailModal extends StatefulWidget {
   final BlogPost blog;
   final VoidCallback? onClose;
-  final Function()? onRefresh; // Callback to refresh parent state
+  final Function()? onRefresh;
 
   const BlogDetailModal({
     super.key,
@@ -39,33 +39,26 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
   @override
   void initState() {
     super.initState();
-    // Initialize reaction data
     _reactionCounts = _parseReactionCounts(widget.blog);
     _currentUserReaction = widget.blog.currentUserReaction;
     _loadComments();
   }
 
-  // Parse reaction counts from blog post
   Map<String, dynamic> _parseReactionCounts(BlogPost blog) {
     if (blog.reactions != null) {
-      // If reactions is already a map with 'total'
       return blog.reactions!;
     }
-    // If reactionCounts exists
     if (blog.reactionCounts != null) {
       return blog.reactionCounts!;
     }
-    // Default empty
     return {'total': 0};
   }
 
-  // Get total reactions count
   int _getTotalReactions() {
     if (_reactionCounts['total'] != null) {
       return _reactionCounts['total'] as int;
     }
 
-    // Fallback: calculate from individual counts
     int total = 0;
     _reactionCounts.forEach((key, value) {
       if (key != 'total') {
@@ -111,19 +104,16 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     });
 
     try {
-      // Call the blog service to add/update reaction
       final result = await _blogService.reactToBlogPost(
         postId: widget.blog.id,
         reactionTypeId: reactionType,
       );
 
-      // Update local state with new data
       setState(() {
         _reactionCounts = {'total': result['total']};
         _currentUserReaction = result['current_user_reaction'];
       });
 
-      // Send notification if user reacted to someone else's post
       final currentUser = authService.currentUser;
       if (currentUser != null &&
           currentUser.id != widget.blog.userId &&
@@ -137,7 +127,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         );
       }
 
-      // Notify parent to refresh if needed
       widget.onRefresh?.call();
     } catch (e) {
       print('Error handling reaction: $e');
@@ -162,22 +151,18 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     });
 
     try {
-      // Remove the reaction
       await _blogService.removeBlogPostReaction(
         postId: widget.blog.id,
         reactionTypeId: _currentUserReaction!,
       );
 
-      // Get updated reaction data
       final result = await _blogService.getBlogPostReactions(widget.blog.id);
 
-      // Update local state
       setState(() {
         _reactionCounts = {'total': result['total']};
         _currentUserReaction = result['current_user_reaction'];
       });
 
-      // Notify parent to refresh if needed
       widget.onRefresh?.call();
     } catch (e) {
       print('Error removing reaction: $e');
@@ -201,7 +186,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
       elevation: 0,
       backgroundColor: Colors.transparent,
       child: Theme(
-        data: Theme.of(context), // Ensure dialog uses current theme
+        data: Theme.of(context),
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(context).size.height * 0.9,
@@ -220,7 +205,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
           ),
           child: Column(
             children: [
-              // Header with close button
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -261,7 +245,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                 ),
               ),
 
-              // Content
               Expanded(
                 child: SingleChildScrollView(
                   child: Padding(
@@ -269,7 +252,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Title
                         Text(
                           widget.blog.title,
                           style: TextStyle(
@@ -280,7 +262,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Author and Date
                         Row(
                           children: [
                             CircleAvatar(
@@ -336,7 +317,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Images Gallery
                         if (widget.blog.imageUrls.isNotEmpty)
                           SizedBox(
                             height: 200,
@@ -369,7 +349,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         if (widget.blog.imageUrls.isNotEmpty)
                           const SizedBox(height: 20),
 
-                        // Content
                         Text(
                           widget.blog.content,
                           style: TextStyle(
@@ -380,7 +359,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Stats
                         Row(
                           children: [
                             Icon(
@@ -420,7 +398,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Action Buttons (Reaction, Comment, Share)
                         Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
@@ -436,7 +413,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
-                              // Reaction Button
                               ReactionButton(
                                 currentReaction: _currentUserReaction,
                                 reactionCounts: _reactionCounts,
@@ -445,10 +421,8 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                 isSmall: false,
                               ),
 
-                              // Comment Button
                               InkWell(
                                 onTap: () {
-                                  // Scroll to comments or show comment input
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: const Text(
@@ -468,7 +442,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                   decoration: BoxDecoration(
                                     color: Theme.of(
                                       context,
-                                    ).colorScheme.surfaceVariant,
+                                    ).colorScheme.surfaceContainerHighest,
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
@@ -496,7 +470,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                 ),
                               ),
 
-                              // Share Button
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 16,
@@ -505,7 +478,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                 decoration: BoxDecoration(
                                   color: Theme.of(
                                     context,
-                                  ).colorScheme.surfaceVariant,
+                                  ).colorScheme.surfaceContainerHighest,
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Row(
@@ -536,7 +509,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
 
                         const SizedBox(height: 20),
 
-                        // Comments Section
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -550,7 +522,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                             ),
                             const SizedBox(height: 12),
 
-                            // Add Comment Button
                             ElevatedButton.icon(
                               onPressed: () {
                                 ScaffoldMessenger.of(context).showSnackBar(
@@ -585,7 +556,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                             ),
                             const SizedBox(height: 16),
 
-                            // Comments List
                             _isLoadingComments
                                 ? Center(
                                     child: CircularProgressIndicator(
@@ -600,7 +570,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                     decoration: BoxDecoration(
                                       color: Theme.of(
                                         context,
-                                      ).colorScheme.surfaceVariant,
+                                      ).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Column(
@@ -640,7 +610,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                     decoration: BoxDecoration(
                                       color: Theme.of(
                                         context,
-                                      ).colorScheme.surfaceVariant,
+                                      ).colorScheme.surfaceContainerHighest,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
                                         color: Theme.of(context).dividerColor,
@@ -714,7 +684,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
   }
 }
 
-// Helper function to show the modal
 void showBlogDetailModal(
   BuildContext context,
   BlogPost blog, {
@@ -725,7 +694,7 @@ void showBlogDetailModal(
     barrierColor: Colors.black.withOpacity(0.5),
     builder: (context) {
       return Theme(
-        data: Theme.of(context), // Wrap with Theme to ensure dark mode
+        data: Theme.of(context),
         child: BlogDetailModal(blog: blog, onRefresh: onRefresh),
       );
     },

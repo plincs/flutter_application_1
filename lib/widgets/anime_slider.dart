@@ -1,5 +1,4 @@
-// widgets/anime_slider.dart
-import 'dart:async'; // Add this import
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 class AnimeSlider extends StatefulWidget {
@@ -78,7 +77,7 @@ class _AnimeSliderState extends State<AnimeSlider> {
   }
 
   void _startAutoSlide() {
-    _autoSlideTimer?.cancel(); // Cancel any existing timer
+    _autoSlideTimer?.cancel();
 
     _autoSlideTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (mounted && _featuredAnime.isNotEmpty) {
@@ -141,7 +140,6 @@ class _AnimeSliderState extends State<AnimeSlider> {
 
     return Column(
       children: [
-        // Slider Title
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -168,7 +166,6 @@ class _AnimeSliderState extends State<AnimeSlider> {
         ),
         const SizedBox(height: 16),
 
-        // Slider
         SizedBox(
           height: 300,
           child: PageView.builder(
@@ -266,7 +263,6 @@ class __AnimeCardState extends State<_AnimeCard> {
             borderRadius: BorderRadius.circular(16),
             child: Stack(
               children: [
-                // Background Image from local assets
                 Positioned.fill(
                   child: widget.anime.containsKey('imageAsset')
                       ? Image.asset(
@@ -279,7 +275,6 @@ class __AnimeCardState extends State<_AnimeCard> {
                       : _buildFallbackImage(),
                 ),
 
-                // Hover Overlay with Title and Synopsis
                 if (_isHovered)
                   Positioned.fill(
                     child: Container(
@@ -290,7 +285,6 @@ class __AnimeCardState extends State<_AnimeCard> {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Anime Title
                             Text(
                               widget.anime['title'] as String,
                               style: const TextStyle(
@@ -303,7 +297,6 @@ class __AnimeCardState extends State<_AnimeCard> {
 
                             const SizedBox(height: 20),
 
-                            // Synopsis
                             Expanded(
                               child: SingleChildScrollView(
                                 child: Text(
@@ -322,7 +315,6 @@ class __AnimeCardState extends State<_AnimeCard> {
                     ),
                   ),
 
-                // Bottom Info Bar (visible when not hovered)
                 if (!_isHovered)
                   Positioned(
                     bottom: 0,

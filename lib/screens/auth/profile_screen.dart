@@ -10,7 +10,6 @@ import '../../services/user_service.dart';
 import '../../services/notification_service.dart';
 import '../../models/blog_post.dart';
 import '../../models/comment.dart';
-import '../../widgets/blog_card.dart';
 import 'package:intl/intl.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -33,7 +32,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   XFile? _selectedImage;
 
-  // App settings with SharedPreferences
   late bool _notificationsEnabled;
   late bool _darkMode;
   late bool _autoPlayVideos;
@@ -79,8 +77,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           currentUser.id,
         );
 
-        // TODO: Implement follower/following counts
-        // For now, use placeholder values
         final followerCount = await _userService.getFollowerCount(
           currentUser.id,
         );
@@ -114,7 +110,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     await _loadUserStats();
   }
 
-  // ============== ACCOUNT SETTINGS FEATURE ==============
   void _showAccountSettings(BuildContext context) {
     final authService = Provider.of<AuthService>(context, listen: false);
     final currentUser = authService.currentUser;
@@ -159,8 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       try {
-        // TODO: Implement email change logic with your AuthService
-        await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+        await Future.delayed(const Duration(seconds: 2));
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -224,10 +218,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
       try {
-        // TODO: Implement password change logic with your AuthService
-        await Future.delayed(const Duration(seconds: 2)); // Simulate API call
+        await Future.delayed(const Duration(seconds: 2));
 
-        // Clear password fields
         currentPasswordController.clear();
         newPasswordController.clear();
         confirmPasswordController.clear();
@@ -283,10 +275,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 });
 
                 try {
-                  // TODO: Implement account deletion logic with your AuthService
-                  await Future.delayed(
-                    const Duration(seconds: 2),
-                  ); // Simulate API call
+                  await Future.delayed(const Duration(seconds: 2));
 
                   Navigator.pushNamedAndRemoveUntil(
                     context,
@@ -357,7 +346,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Email Change Section
                       const Text(
                         'Change Email',
                         style: TextStyle(
@@ -399,7 +387,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Password Change Section
                       const Text(
                         'Change Password',
                         style: TextStyle(
@@ -461,7 +448,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Account Deletion Section
                       const Text(
                         'Account Management',
                         style: TextStyle(
@@ -499,7 +485,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Additional Account Info
                       const Divider(),
                       const SizedBox(height: 12),
                       const Text(
@@ -542,7 +527,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ============== LIKED POSTS FEATURE ==============
   Future<void> _showLikedPosts(BuildContext context) async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
@@ -558,7 +542,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -574,16 +557,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
-      // Get all blog posts
       final allPosts = await _blogService.getBlogPosts();
 
-      // DEBUG: Print post details to see what data we have
       print('Total posts loaded: ${allPosts.length}');
       for (var post in allPosts) {
         print('Post: ${post.title}, Reaction: ${post.currentUserReaction}');
       }
 
-      // Filter posts that the user has reacted to
       final likedPosts = allPosts.where((post) {
         final hasReaction =
             post.currentUserReaction != null &&
@@ -598,12 +578,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       print('Found ${likedPosts.length} liked posts');
 
-      // Close loading dialog
       if (mounted) Navigator.pop(context);
 
       if (!mounted) return;
 
-      // Show liked posts in a dialog
       showDialog(
         context: context,
         builder: (context) => Dialog(
@@ -730,7 +708,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    // Show reaction emoji if available
                                     if (post.currentUserReaction != null)
                                       FutureBuilder<Map<String, dynamic>?>(
                                         future: _getReactionEmoji(
@@ -788,7 +765,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // Helper method to get reaction emoji
   Future<Map<String, dynamic>?> _getReactionEmoji(String reactionTypeId) async {
     try {
       final reactionTypes = await _blogService.getReactionTypes();
@@ -802,7 +778,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ============== MY COMMENTS FEATURE ==============
   Future<void> _showMyComments(BuildContext context) async {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
@@ -818,7 +793,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return;
       }
 
-      // Show loading dialog
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -834,8 +808,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
 
-      // Get all comments by user (you'll need to implement this in BlogService)
-      // For now, we'll get all posts and filter comments
       final allPosts = await _blogService.getBlogPosts();
       final userComments = <Map<String, dynamic>>[];
 
@@ -857,17 +829,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
       }
 
-      // Sort by date (newest first)
       userComments.sort((a, b) {
         return b['comment'].createdAt.compareTo(a['comment'].createdAt);
       });
 
-      // Close loading dialog
       if (mounted) Navigator.pop(context);
 
       if (!mounted) return;
 
-      // Show comments in a dialog
       showDialog(
         context: context,
         builder: (context) => Dialog(
@@ -880,7 +849,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Column(
               children: [
-                // Header
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -902,7 +870,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const Divider(height: 1),
 
-                // Content
                 Expanded(
                   child: userComments.isEmpty
                       ? Center(
@@ -1003,7 +970,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  // ============== APP SETTINGS FEATURE ==============
   void _showAppSettingsDialog(BuildContext context) {
     final List<String> languages = [
       'English',
@@ -1049,7 +1015,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Notifications
                       const Text(
                         'Notifications',
                         style: TextStyle(
@@ -1073,7 +1038,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Display
                       const Text(
                         'Display',
                         style: TextStyle(
@@ -1130,7 +1094,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Media
                       const Text(
                         'Media',
                         style: TextStyle(
@@ -1154,7 +1117,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Data Usage
                       const Text(
                         'Data Usage',
                         style: TextStyle(
@@ -1178,7 +1140,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Clear Cache Button
                       ListTile(
                         leading: const Icon(
                           Icons.delete_outline,
@@ -1222,13 +1183,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Save & Reset Buttons
                       Row(
                         children: [
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () {
-                                // Reset to defaults
                                 setState(() {
                                   _notificationsEnabled = true;
                                   _darkMode = false;
@@ -1275,7 +1234,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ============== HELP & SUPPORT FEATURE ==============
   void _showHelpAndSupport(BuildContext context) {
     final TextEditingController supportController = TextEditingController();
     bool isSubmitting = false;
@@ -1295,7 +1253,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         isSubmitting = true;
       });
 
-      // Simulate sending support request
       await Future.delayed(const Duration(seconds: 2));
 
       setState(() {
@@ -1348,7 +1305,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // FAQ Section
                       const Text(
                         'Frequently Asked Questions',
                         style: TextStyle(
@@ -1362,7 +1318,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Contact Support
                       const Text(
                         'Contact Support',
                         style: TextStyle(
@@ -1384,7 +1339,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Alternative Contact Methods
                       const Text(
                         'Other ways to contact us:',
                         style: TextStyle(
@@ -1505,10 +1459,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }).toList();
   }
 
-  // ============== EXISTING METHODS (keep these) ==============
-
   Future<void> _pickProfileImage() async {
-    // ... keep existing code ...
     try {
       showModalBottomSheet(
         context: context,
@@ -1558,7 +1509,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
     } catch (e) {
       print('Error picking image: $e');
-      // Fallback: pick from gallery directly
       final image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         setState(() {
@@ -1645,7 +1595,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showBlogDetails(BlogPost blog) {
-    // ... keep existing code ...
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1692,7 +1641,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _showEditProfileDialog(BuildContext context, AuthService authService) {
-    // ... keep existing code ...
     final TextEditingController displayNameController = TextEditingController(
       text: authService.displayName ?? '',
     );
@@ -1738,7 +1686,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Profile Image Section
                       Center(
                         child: GestureDetector(
                           onTap: isUpdating ? null : _pickProfileImage,
@@ -1937,7 +1884,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   try {
                                     String? profilePhotoUrl;
 
-                                    // Upload new profile image if selected
                                     if (_selectedImage != null) {
                                       profilePhotoUrl = await _storageService
                                           .uploadImage(
@@ -1946,7 +1892,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           );
                                     }
 
-                                    // Update user profile
                                     await _userService.updateUserProfile(
                                       displayName: displayNameController.text,
                                       bio: bioController.text.isNotEmpty
@@ -1955,10 +1900,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       profilePhotoUrl: profilePhotoUrl,
                                     );
 
-                                    // Refresh auth service to get updated data
                                     await authService.loadCurrentUser();
 
-                                    // Refresh stats
                                     await _loadUserStats();
 
                                     Navigator.pop(context);
@@ -2038,7 +1981,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       final now = DateTime.now();
       final difference = now.difference(date);
 
-      // If less than 24 hours, show relative time
       if (difference.inDays == 0) {
         return 'Today at ${DateFormat('h:mm a').format(date)}';
       } else if (difference.inDays == 1) {
@@ -2049,7 +1991,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         return DateFormat('MMM d, yyyy - h:mm a').format(date);
       }
     } catch (e) {
-      // If parsing fails, return the original string
       return dateString;
     }
   }
@@ -2065,14 +2006,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         child: Column(
           children: [
-            // Profile Header
-            // Around line 900, find the Profile Header section:
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.primaryContainer, // ← CHANGE THIS
+                color: Theme.of(context).colorScheme.primaryContainer,
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(20),
                   bottomRight: Radius.circular(20),
@@ -2080,12 +2017,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               child: Column(
                 children: [
-                  // Profile Photo
                   CircleAvatar(
                     radius: 50,
                     backgroundColor: Theme.of(
                       context,
-                    ).colorScheme.primary.withOpacity(0.2), // ← CHANGE
+                    ).colorScheme.primary.withOpacity(0.2),
                     backgroundImage: authService.profilePhotoUrl != null
                         ? NetworkImage(authService.profilePhotoUrl!)
                         : null,
@@ -2099,37 +2035,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               fontWeight: FontWeight.bold,
                               color: Theme.of(
                                 context,
-                              ).colorScheme.onPrimaryContainer, // ← CHANGE
+                              ).colorScheme.onPrimaryContainer,
                             ),
                           )
                         : null,
                   ),
                   const SizedBox(height: 16),
 
-                  // Display Name
                   Text(
                     authService.displayName ?? 'Guest',
                     style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onPrimaryContainer, // ← CHANGE
+                      color: Theme.of(context).colorScheme.onPrimaryContainer,
                     ),
                   ),
 
-                  // Email
                   if (authService.email != null)
                     Text(
                       authService.email!,
                       style: TextStyle(
                         fontSize: 16,
-                        color: Theme.of(context).colorScheme.onPrimaryContainer
-                            .withOpacity(0.8), // ← CHANGE
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onPrimaryContainer.withOpacity(0.8),
                       ),
                     ),
 
-                  // Bio
                   if (authService.bio != null && authService.bio!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -2138,10 +2070,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Theme.of(context)
-                              .colorScheme
-                              .onPrimaryContainer
-                              .withOpacity(0.7), // ← CHANGE
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onPrimaryContainer.withOpacity(0.7),
                           fontStyle: FontStyle.italic,
                         ),
                       ),
@@ -2149,18 +2080,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   const SizedBox(height: 20),
 
-                  // Edit Profile Button
                   ElevatedButton(
                     onPressed: () {
                       _showEditProfileDialog(context, authService);
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(
-                        context,
-                      ).colorScheme.primary, // ← CHANGE
-                      foregroundColor: Theme.of(
-                        context,
-                      ).colorScheme.onPrimary, // ← CHANGE
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(8),
                       ),
@@ -2172,17 +2098,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
 
             const SizedBox(height: 24),
-
-            // Profile Stats
-            // Around line 960, find the Profile Stats:
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _isLoading
                   ? Center(
                       child: CircularProgressIndicator(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.primary, // ← ADD THIS
+                        color: Theme.of(context).colorScheme.primary,
                       ),
                     )
                   : Row(
@@ -2199,7 +2120,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
 
             const SizedBox(height: 8),
-            // Around line 970
             if (!_isLoading && _postCount == 0)
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -2208,7 +2128,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   style: TextStyle(
                     color: Theme.of(
                       context,
-                    ).colorScheme.onSurface.withOpacity(0.6), // ← CHANGE
+                    ).colorScheme.onSurface.withOpacity(0.6),
                     fontStyle: FontStyle.italic,
                   ),
                 ),
@@ -2216,8 +2136,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 32),
 
-            // Menu Items
-            // Around line 980, find the Menu Items:
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -2256,7 +2174,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     _buildMenuItem(
                       icon: Icons.logout,
                       title: 'Logout',
-                      color: Theme.of(context).colorScheme.error, // ← CHANGE
+                      color: Theme.of(context).colorScheme.error,
                       onTap: () {
                         _showLogoutDialog(context, authService);
                       },
@@ -2280,16 +2198,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.bold,
-            color: Theme.of(context).colorScheme.onSurface, // ← CHANGE
+            color: Theme.of(context).colorScheme.onSurface,
           ),
         ),
         Text(
           label,
           style: TextStyle(
             fontSize: 14,
-            color: Theme.of(
-              context,
-            ).colorScheme.onSurface.withOpacity(0.7), // ← CHANGE
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
           ),
         ),
       ],
@@ -2306,7 +2222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final textColor = color ?? Theme.of(context).colorScheme.onSurface;
 
     return Card(
-      color: Theme.of(context).colorScheme.surface, // ← ADD THIS
+      color: Theme.of(context).colorScheme.surface,
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: Icon(icon, color: iconColor),
@@ -2317,7 +2233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         trailing: Icon(
           Icons.arrow_forward_ios,
           size: 16,
-          color: Theme.of(context).colorScheme.outline, // ← CHANGE
+          color: Theme.of(context).colorScheme.outline,
         ),
         onTap: onTap,
       ),

@@ -29,7 +29,6 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
-
         Provider(create: (_) => NotificationService()),
       ],
       child: Consumer<ThemeProvider>(
@@ -79,7 +78,7 @@ class MyApp extends StatelessWidget {
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
       ),
-      dialogTheme: DialogThemeData(backgroundColor: Colors.white),
+      dialogTheme: const DialogThemeData(backgroundColor: Colors.white),
     );
   }
 
@@ -107,7 +106,7 @@ class MyApp extends StatelessWidget {
         selectedItemColor: Colors.blue,
         unselectedItemColor: Colors.grey,
       ),
-      dialogTheme: DialogThemeData(backgroundColor: const Color(0xFF1E1E1E)),
+      dialogTheme: const DialogThemeData(backgroundColor: Color(0xFF1E1E1E)),
     );
   }
 }

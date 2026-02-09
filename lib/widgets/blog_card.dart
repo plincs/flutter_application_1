@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../models/blog_post.dart';
 import '../widgets/reaction_button.dart';
@@ -14,7 +13,7 @@ class BlogCard extends StatefulWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final bool showReactions;
-  final Function()? onRefresh; // Callback to refresh parent state
+  final Function()? onRefresh;
 
   const BlogCard({
     super.key,
@@ -40,32 +39,25 @@ class _BlogCardState extends State<BlogCard> {
   @override
   void initState() {
     super.initState();
-    // Initialize reaction data
     _reactionCounts = _parseReactionCounts(widget.blog);
     _currentUserReaction = widget.blog.currentUserReaction;
   }
 
-  // Parse reaction counts from blog post
   Map<String, dynamic> _parseReactionCounts(BlogPost blog) {
     if (blog.reactions != null) {
-      // If reactions is already a map with 'total'
       return blog.reactions!;
-        }
-    // If reactionCounts exists
+    }
     if (blog.reactionCounts != null) {
       return blog.reactionCounts!;
     }
-    // Default empty
     return {'total': 0};
   }
 
-  // Get total reactions count
   int _getTotalReactions() {
     if (_reactionCounts['total'] != null) {
       return _reactionCounts['total'] as int;
     }
 
-    // Fallback: calculate from individual counts
     int total = 0;
     _reactionCounts.forEach((key, value) {
       if (key != 'total') {
@@ -94,19 +86,16 @@ class _BlogCardState extends State<BlogCard> {
     });
 
     try {
-      // Call the blog service to add/update reaction
       final result = await _blogService.reactToBlogPost(
         postId: widget.blog.id,
         reactionTypeId: reactionType,
       );
 
-      // Update local state with new data
       setState(() {
         _reactionCounts = {'total': result['total']};
         _currentUserReaction = result['current_user_reaction'];
       });
 
-      // Send notification if user reacted to someone else's post
       final currentUser = authService.currentUser;
       if (currentUser != null &&
           currentUser.id != widget.blog.userId &&
@@ -120,10 +109,10 @@ class _BlogCardState extends State<BlogCard> {
         );
       }
 
-      // Notify parent to refresh if needed
-      widget.onRefresh?.call();
+      if (widget.onRefresh != null) {
+        widget.onRefresh!();
+      }
     } catch (e) {
-      print('Error handling reaction: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -145,25 +134,22 @@ class _BlogCardState extends State<BlogCard> {
     });
 
     try {
-      // Remove the reaction
       await _blogService.removeBlogPostReaction(
         postId: widget.blog.id,
         reactionTypeId: _currentUserReaction!,
       );
 
-      // Get updated reaction data
       final result = await _blogService.getBlogPostReactions(widget.blog.id);
 
-      // Update local state
       setState(() {
         _reactionCounts = {'total': result['total']};
         _currentUserReaction = result['current_user_reaction'];
       });
 
-      // Notify parent to refresh if needed
-      widget.onRefresh?.call();
+      if (widget.onRefresh != null) {
+        widget.onRefresh!();
+      }
     } catch (e) {
-      print('Error removing reaction: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Error: ${e.toString()}'),
@@ -194,7 +180,6 @@ class _BlogCardState extends State<BlogCard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Title
               Text(
                 widget.blog.title,
                 style: const TextStyle(
@@ -206,7 +191,6 @@ class _BlogCardState extends State<BlogCard> {
               ),
               const SizedBox(height: 8),
 
-              // Content preview
               Text(
                 widget.blog.content.length > 150
                     ? '${widget.blog.content.substring(0, 150)}...'
@@ -217,7 +201,6 @@ class _BlogCardState extends State<BlogCard> {
               ),
               const SizedBox(height: 12),
 
-              // Images
               if (widget.blog.imageUrls.isNotEmpty)
                 SizedBox(
                   height: 100,
@@ -255,7 +238,6 @@ class _BlogCardState extends State<BlogCard> {
 
               if (widget.blog.imageUrls.isNotEmpty) const SizedBox(height: 12),
 
-              // Author and date
               Row(
                 children: [
                   CircleAvatar(
@@ -295,12 +277,10 @@ class _BlogCardState extends State<BlogCard> {
                 ],
               ),
 
-              // Reactions and comments section
               const Divider(height: 1),
               const SizedBox(height: 12),
               Row(
                 children: [
-                  // Reaction button
                   if (widget.showReactions)
                     ReactionButton(
                       currentReaction: _currentUserReaction,
@@ -312,7 +292,6 @@ class _BlogCardState extends State<BlogCard> {
 
                   if (widget.showReactions) const SizedBox(width: 16),
 
-                  // Comments
                   InkWell(
                     onTap: widget.onTap,
                     child: Row(
@@ -345,18 +324,14 @@ class _BlogCardState extends State<BlogCard> {
 
                   const Spacer(),
 
-                  // Share button (optional)
                   IconButton(
                     icon: const Icon(Icons.share_outlined, size: 18),
-                    onPressed: () {
-                      // Implement share functionality
-                    },
+                    onPressed: () {},
                     color: Colors.grey[600],
                   ),
                 ],
               ),
 
-              // Action buttons (if provided)
               if (widget.onEdit != null || widget.onDelete != null) ...[
                 const Divider(height: 20),
                 Row(

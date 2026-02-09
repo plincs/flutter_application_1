@@ -63,7 +63,6 @@ class _CommentCardState extends State<CommentCard> {
     });
 
     try {
-      // If user already has this reaction, remove it
       if (_currentUserReaction == reactionType) {
         await _blogService.removeCommentReaction(
           commentId: widget.comment.id,
@@ -79,7 +78,6 @@ class _CommentCardState extends State<CommentCard> {
           }
         });
       } else {
-        // Remove previous reaction if exists
         if (_currentUserReaction != null) {
           await _blogService.removeCommentReaction(
             commentId: widget.comment.id,
@@ -87,13 +85,11 @@ class _CommentCardState extends State<CommentCard> {
           );
         }
 
-        // Add new reaction
         await _blogService.reactToComment(
           commentId: widget.comment.id,
           reactionTypeId: reactionType,
         );
 
-        // Update local state
         setState(() {
           if (_currentUserReaction != null) {
             _reactionCounts[_currentUserReaction!] =
@@ -168,7 +164,6 @@ class _CommentCardState extends State<CommentCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Comment header
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -252,7 +247,6 @@ class _CommentCardState extends State<CommentCard> {
             ),
             const SizedBox(height: 8),
 
-            // Comment content
             if (widget.comment.content != null &&
                 widget.comment.content!.isNotEmpty)
               Padding(
@@ -263,7 +257,6 @@ class _CommentCardState extends State<CommentCard> {
                 ),
               ),
 
-            // Comment image
             if (widget.comment.imageUrl != null &&
                 widget.comment.imageUrl!.isNotEmpty)
               Container(
@@ -290,11 +283,10 @@ class _CommentCardState extends State<CommentCard> {
                 ),
               ),
 
-            // Reaction button for comments
             if (widget.showReactions) ...[
               const SizedBox(height: 8),
               Align(
-                alignment: Alignment.centerRight,
+                alignment: Alignment.centerLeft,
                 child: ReactionButton(
                   currentReaction: _currentUserReaction,
                   reactionCounts: _reactionCounts,

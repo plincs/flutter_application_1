@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/search_service.dart';
 import '../models/blog_post.dart';
 import '../widgets/blog_card.dart';
-import 'home_screen.dart'; // This imports BlogDetailModal
+import 'home_screen.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
@@ -24,7 +24,6 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   void initState() {
     super.initState();
-    // Request focus when screen loads
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _searchFocusNode.requestFocus();
@@ -84,12 +83,10 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   void _onSearchChanged(String value) {
-    // Cancel previous timer
     if (_debounceTimer?.isActive ?? false) {
       _debounceTimer?.cancel();
     }
 
-    // Start new timer (debounce)
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
       if (mounted) {
         _performSearch(value);

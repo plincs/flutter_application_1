@@ -53,7 +53,7 @@ class _ReactionButtonState extends State<ReactionButton> {
             child: Stack(
               children: [
                 Positioned(
-                  left: position.dx - 100,
+                  left: position.dx - 10,
                   top: position.dy - 70,
                   child: Material(
                     elevation: 4,
@@ -117,25 +117,20 @@ class _ReactionButtonState extends State<ReactionButton> {
 
   void _handleButtonClick() {
     if (widget.currentReaction == null) {
-      // Show reaction menu on first click
       _showReactionMenu();
     } else {
-      // Remove reaction on click if already has one
       widget.onReactionRemoved?.call();
     }
   }
 
-  // FIXED: Show thumbs up icon when no reaction, emoji when reacted
   Widget _getReactionIcon() {
     if (widget.currentReaction == null) {
-      // No reaction - show neutral thumbs up icon
       return Icon(
         Icons.thumb_up_alt_outlined,
         size: widget.isSmall ? 16 : 20,
         color: Colors.grey[600],
       );
     } else {
-      // Has reaction - show the emoji
       final reaction = _reactionTypes.firstWhere(
         (r) => r['id'] == widget.currentReaction,
         orElse: () => _reactionTypes[0],
@@ -156,16 +151,13 @@ class _ReactionButtonState extends State<ReactionButton> {
     return reaction['color'];
   }
 
-  // Get TOTAL reaction count (sum of all reactions)
   int _getTotalReactions() {
     if (widget.reactionCounts == null) return 0;
 
-    // If it's already a total count (from simplified service)
     if (widget.reactionCounts!['total'] != null) {
       return widget.reactionCounts!['total'] as int;
     }
 
-    // Otherwise calculate from individual counts
     int total = 0;
     widget.reactionCounts!.forEach((key, value) {
       total += (value is int ? value : int.tryParse(value.toString()) ?? 0);
@@ -224,10 +216,8 @@ class _ReactionButtonState extends State<ReactionButton> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Use icon for no reaction, emoji for reacted
               _getReactionIcon(),
 
-              // Show total count if there are any reactions
               if (totalReactions > 0) ...[
                 const SizedBox(width: 6),
                 Text(
