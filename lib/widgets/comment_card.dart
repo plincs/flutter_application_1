@@ -154,8 +154,71 @@ class _CommentCardState extends State<CommentCard> {
     }
   }
 
+  Widget _buildImagesGrid(List<String> imageUrls) {
+    if (imageUrls.isEmpty) return const SizedBox.shrink();
+
+    if (imageUrls.length == 1) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        constraints: const BoxConstraints(maxWidth: 100, maxHeight: 100),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            imageUrls[0],
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                width: 100,
+                height: 100,
+                color: Colors.grey[200],
+                child: const Center(
+                  child: Icon(Icons.broken_image, color: Colors.grey),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    // For multiple images, show in a grid
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: GridView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 4,
+          mainAxisSpacing: 4,
+          childAspectRatio: 1,
+        ),
+        itemCount: imageUrls.length,
+        itemBuilder: (context, index) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              imageUrls[index],
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: Icon(Icons.broken_image, color: Colors.grey),
+                  ),
+                );
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final imageUrls = widget.comment.imageUrls ?? [];
+
     return Card(
       elevation: 1,
       margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 0),
@@ -257,31 +320,7 @@ class _CommentCardState extends State<CommentCard> {
                 ),
               ),
 
-            if (widget.comment.imageUrl != null &&
-                widget.comment.imageUrl!.isNotEmpty)
-              Container(
-                constraints: const BoxConstraints(
-                  maxWidth: 300,
-                  maxHeight: 300,
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    widget.comment.imageUrl!,
-                    fit: BoxFit.contain,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Container(
-                        width: 200,
-                        height: 150,
-                        color: Colors.grey[200],
-                        child: const Center(
-                          child: Icon(Icons.broken_image, color: Colors.grey),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
+            if (imageUrls.isNotEmpty) _buildImagesGrid(imageUrls),
 
             if (widget.showReactions) ...[
               const SizedBox(height: 8),

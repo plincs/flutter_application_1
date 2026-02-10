@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -30,7 +31,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int _followerCount = 0;
   int _followingCount = 0;
   bool _isLoading = true;
-  XFile? _selectedImage;
 
   late bool _notificationsEnabled;
   late bool _darkMode;
@@ -594,7 +594,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Column(
               children: [
-                // Header
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Row(
@@ -616,7 +615,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const Divider(height: 1),
 
-                // Content
                 Expanded(
                   child: likedPosts.isEmpty
                       ? Center(
@@ -1459,9 +1457,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }).toList();
   }
 
-  Future<void> _pickProfileImage() async {
+  Future<Uint8List?> _pickProfileImage() async {
     try {
-      showModalBottomSheet(
+      final imageSource = await showModalBottomSheet<ImageSource>(
         context: context,
         builder: (context) => SafeArea(
           child: Column(
@@ -1470,62 +1468,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ListTile(
                 leading: const Icon(Icons.photo_library),
                 title: const Text('Choose from Gallery'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _picker.pickImage(
-                    source: ImageSource.gallery,
-                    maxWidth: 800,
-                    maxHeight: 800,
-                    imageQuality: 85,
-                  );
-                  if (image != null) {
-                    setState(() {
-                      _selectedImage = image;
-                    });
-                  }
+                onTap: () {
+                  Navigator.pop(context, ImageSource.gallery);
                 },
               ),
               ListTile(
                 leading: const Icon(Icons.camera_alt),
                 title: const Text('Take a Photo'),
-                onTap: () async {
-                  Navigator.pop(context);
-                  final image = await _picker.pickImage(
-                    source: ImageSource.camera,
-                    maxWidth: 800,
-                    maxHeight: 800,
-                    imageQuality: 85,
-                  );
-                  if (image != null) {
-                    setState(() {
-                      _selectedImage = image;
-                    });
-                  }
+                onTap: () {
+                  Navigator.pop(context, ImageSource.camera);
                 },
               ),
             ],
           ),
         ),
       );
+
+      if (imageSource != null) {
+        final image = await _picker.pickImage(
+          source: imageSource,
+          maxWidth: 800,
+          maxHeight: 800,
+          imageQuality: 85,
+        );
+        if (image != null) {
+          final bytes = await image.readAsBytes();
+          return bytes;
+        }
+      }
+      return null;
     } catch (e) {
       print('Error picking image: $e');
       final image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        setState(() {
-          _selectedImage = image;
-        });
+        final bytes = await image.readAsBytes();
+        return bytes;
       }
+      return null;
     }
   }
 
-  void _removeSelectedImage() {
-    setState(() {
-      _selectedImage = null;
-    });
-  }
-
   void _navigateToMyBlogs() async {
-    // ... keep existing code ...
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
       final currentUser = authService.currentUser;
@@ -1650,6 +1633,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final formKey = GlobalKey<FormState>();
     bool isUpdating = false;
 
+    Uint8List? selectedImageBytes;
+    XFile? selectedImageFile;
+
     showDialog(
       context: context,
       builder: (context) {
@@ -1688,7 +1674,66 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       Center(
                         child: GestureDetector(
-                          onTap: isUpdating ? null : _pickProfileImage,
+                          onTap: isUpdating
+                              ? null
+                              : () async {
+                                  final imageSource =
+                                      await showModalBottomSheet<ImageSource>(
+                                        context: context,
+                                        builder: (context) => SafeArea(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              ListTile(
+                                                leading: const Icon(
+                                                  Icons.photo_library,
+                                                ),
+                                                title: const Text(
+                                                  'Choose from Gallery',
+                                                ),
+                                                onTap: () {
+                                                  Navigator.pop(
+                                                    context,
+                                                    ImageSource.gallery,
+                                                  );
+                                                },
+                                              ),
+                                              ListTile(
+                                                leading: const Icon(
+                                                  Icons.camera_alt,
+                                                ),
+                                                title: const Text(
+                                                  'Take a Photo',
+                                                ),
+                                                onTap: () {
+                                                  Navigator.pop(
+                                                    context,
+                                                    ImageSource.camera,
+                                                  );
+                                                },
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+
+                                  if (imageSource != null) {
+                                    final image = await _picker.pickImage(
+                                      source: imageSource,
+                                      maxWidth: 800,
+                                      maxHeight: 800,
+                                      imageQuality: 85,
+                                    );
+
+                                    if (image != null) {
+                                      final bytes = await image.readAsBytes();
+                                      setState(() {
+                                        selectedImageBytes = bytes;
+                                        selectedImageFile = image;
+                                      });
+                                    }
+                                  }
+                                },
                           child: Stack(
                             children: [
                               Container(
@@ -1702,24 +1747,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                                 child: ClipOval(
-                                  child: _selectedImage != null
-                                      ? FutureBuilder(
-                                          future: _selectedImage!.readAsBytes(),
-                                          builder: (context, snapshot) {
-                                            if (snapshot.hasData) {
-                                              return Image.memory(
-                                                snapshot.data!,
-                                                width: 100,
-                                                height: 100,
-                                                fit: BoxFit.cover,
-                                              );
-                                            }
-                                            return Center(
-                                              child: CircularProgressIndicator(
-                                                color: Colors.blue[400],
-                                              ),
-                                            );
-                                          },
+                                  child: selectedImageBytes != null
+                                      ? Image.memory(
+                                          selectedImageBytes!,
+                                          width: 100,
+                                          height: 100,
+                                          fit: BoxFit.cover,
                                         )
                                       : authService.profilePhotoUrl != null &&
                                             authService
@@ -1789,7 +1822,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ),
                       ),
-                      if (_selectedImage != null)
+                      if (selectedImageBytes != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Row(
@@ -1804,7 +1837,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(width: 8),
                               GestureDetector(
-                                onTap: isUpdating ? null : _removeSelectedImage,
+                                onTap: isUpdating
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          selectedImageBytes = null;
+                                          selectedImageFile = null;
+                                        });
+                                      },
                                 child: Text(
                                   'Remove',
                                   style: TextStyle(
@@ -1884,21 +1924,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   try {
                                     String? profilePhotoUrl;
 
-                                    if (_selectedImage != null) {
+                                    if (selectedImageFile != null) {
                                       profilePhotoUrl = await _storageService
                                           .uploadImage(
                                             bucket: 'profile-images',
-                                            imageFile: _selectedImage!,
+                                            imageFile: selectedImageFile!,
                                           );
                                     }
 
-                                    await _userService.updateUserProfile(
-                                      displayName: displayNameController.text,
-                                      bio: bioController.text.isNotEmpty
-                                          ? bioController.text
-                                          : null,
-                                      profilePhotoUrl: profilePhotoUrl,
-                                    );
+                                    final currentUserId =
+                                        authService.currentUser?.id;
+
+                                    if (currentUserId != null) {
+                                      await _userService.updateUserProfile(
+                                        displayName: displayNameController.text,
+                                        bio: bioController.text.isNotEmpty
+                                            ? bioController.text
+                                            : null,
+
+                                        profilePhotoUrl:
+                                            profilePhotoUrl ??
+                                            authService.profilePhotoUrl,
+                                      );
+                                    }
 
                                     await authService.loadCurrentUser();
 
@@ -1915,7 +1963,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       ),
                                     );
                                   } catch (e) {
-                                    print('Error updating profile: $e');
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
@@ -2264,15 +2311,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: const Text('Logout', style: TextStyle(color: Colors.red)),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showComingSoonSnackBar(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature feature coming soon!'),
-        duration: const Duration(seconds: 2),
       ),
     );
   }

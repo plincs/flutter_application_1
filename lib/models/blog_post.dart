@@ -88,14 +88,19 @@ class BlogPost {
     String? authorName;
     String? authorPhoto;
 
-    if (json['author_name'] != null) {
-      authorName = json['author_name'] as String;
-      authorPhoto = json['author_photo_url'] as String?;
-    } else if (json['users'] != null) {
+    if (json['users'] != null) {
       final users = json['users'] as Map<String, dynamic>?;
       authorName = users?['display_name'] as String?;
       authorPhoto = users?['profile_photo_url'] as String?;
-    } else {
+    }
+
+    if ((authorName == null || authorName.isEmpty) &&
+        json['author_name'] != null) {
+      authorName = json['author_name'] as String;
+      authorPhoto = json['author_photo_url'] as String?;
+    }
+
+    if (authorName == null || authorName.isEmpty) {
       authorName = 'Unknown';
       authorPhoto = null;
     }
@@ -137,7 +142,7 @@ class BlogPost {
       imageUrls: List<String>.from(json['image_urls'] ?? []),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
-      authorName: authorName ?? 'Unknown',
+      authorName: authorName,
       authorPhoto: authorPhoto,
       reactions: parsedReactionCounts,
       userReaction: json['user_reaction'] as Map<String, dynamic>?,
@@ -187,6 +192,10 @@ class BlogPost {
 
   BlogPost updateUserReaction(String? reactionType) {
     return copyWith(currentUserReaction: reactionType);
+  }
+
+  BlogPost updateAuthorPhoto(String? newPhotoUrl) {
+    return copyWith(authorPhoto: newPhotoUrl);
   }
 
   Map<String, dynamic> toJson() {

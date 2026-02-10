@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:typed_data'; // Add this import
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -18,8 +20,6 @@ import 'auth/profile_screen.dart';
 import '../widgets/anime_slider.dart';
 import '../services/theme_provider.dart';
 import '../services/search_service.dart';
-import 'package:intl/intl.dart';
-import 'dart:async';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -639,6 +639,12 @@ class _HomeScreenState extends State<HomeScreen> {
     final userName = authService.displayName ?? 'Guest';
     final userEmail = authService.currentUser?.email;
     final profilePhotoUrl = authService.profilePhotoUrl;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_currentIndex == 0) {
+        _loadBlogs();
+      }
+    });
 
     final screens = [
       _buildHomeContent(),
@@ -1488,6 +1494,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
   bool _isSubmitting = false;
   final List<XFile> _selectedImages = [];
   final List<String> _uploadedImageUrls = [];
+  final Map<int, Uint8List> _imageCache = {}; // Cache for image bytes
 
   Future<void> _pickImage() async {
     try {
@@ -1518,6 +1525,8 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                   if (image != null) {
                     setState(() {
                       _selectedImages.add(image);
+                      // Pre-cache image
+                      _preCacheImage(_selectedImages.length - 1, image);
                     });
                   }
                 },
@@ -1539,6 +1548,8 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                   if (image != null) {
                     setState(() {
                       _selectedImages.add(image);
+                      // Pre-cache image
+                      _preCacheImage(_selectedImages.length - 1, image);
                     });
                   }
                 },
@@ -1552,8 +1563,22 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
       if (image != null) {
         setState(() {
           _selectedImages.add(image);
+          _preCacheImage(_selectedImages.length - 1, image);
         });
       }
+    }
+  }
+
+  Future<void> _preCacheImage(int index, XFile image) async {
+    try {
+      final bytes = await image.readAsBytes();
+      if (mounted) {
+        setState(() {
+          _imageCache[index] = bytes;
+        });
+      }
+    } catch (e) {
+      // Ignore cache errors
     }
   }
 
@@ -1611,12 +1636,84 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
     _contentController.clear();
     _selectedImages.clear();
     _uploadedImageUrls.clear();
+    _imageCache.clear();
   }
 
   void _removeImage(int index) {
     setState(() {
+      // Remove from cache
+      _imageCache.remove(index);
+
+      // Shift cache indices for images after the removed one
+      final keysToUpdate = _imageCache.keys
+          .where((key) => key > index)
+          .toList();
+      for (final key in keysToUpdate) {
+        final bytes = _imageCache[key]!;
+        _imageCache.remove(key);
+        _imageCache[key - 1] = bytes;
+      }
+
       _selectedImages.removeAt(index);
     });
+  }
+
+  Widget _buildImagePreview(int index) {
+    if (_imageCache.containsKey(index)) {
+      // Display cached image
+      return Image.memory(
+        _imageCache[index]!,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildErrorImage();
+        },
+      );
+    } else {
+      // Show loading indicator while reading file
+      return FutureBuilder<Uint8List>(
+        future: _selectedImages[index].readAsBytes(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            );
+          } else if (snapshot.hasError) {
+            return _buildErrorImage();
+          } else if (snapshot.hasData) {
+            // Cache the bytes for future use
+            final bytes = snapshot.data!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && index < _selectedImages.length) {
+                setState(() {
+                  _imageCache[index] = bytes;
+                });
+              }
+            });
+
+            return Image.memory(
+              bytes,
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+            );
+          } else {
+            return _buildErrorImage();
+          }
+        },
+      );
+    }
+  }
+
+  Widget _buildErrorImage() {
+    return Container(
+      color: Colors.grey[200],
+      child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+    );
   }
 
   @override
@@ -1803,38 +1900,15 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                             height: 100,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(8),
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.surface.withOpacity(0.5),
                               border: Border.all(
                                 color: Theme.of(context).colorScheme.outline,
                               ),
                             ),
                             child: Stack(
                               children: [
-                                Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.image,
-                                        size: 40,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withOpacity(0.4),
-                                      ),
-                                      Text(
-                                        'Image ${index + 1}',
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: _buildImagePreview(index),
                                 ),
                                 Positioned(
                                   top: 4,
@@ -1845,7 +1919,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                                       decoration: BoxDecoration(
                                         color: Theme.of(
                                           context,
-                                        ).colorScheme.surface.withOpacity(0.8),
+                                        ).colorScheme.errorContainer,
                                         shape: BoxShape.circle,
                                       ),
                                       child: Icon(
@@ -1853,7 +1927,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                                         size: 20,
                                         color: Theme.of(
                                           context,
-                                        ).colorScheme.onSurface,
+                                        ).colorScheme.onErrorContainer,
                                       ),
                                     ),
                                   ),
@@ -1923,6 +1997,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _imageCache.clear();
     super.dispose();
   }
 }
@@ -1952,6 +2027,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
   final List<XFile> _selectedImages = [];
   final List<String> _uploadedImageUrls = [];
   List<String> _existingImageUrls = [];
+  final Map<int, Uint8List> _imageCache = {}; // Cache for new images
 
   @override
   void initState() {
@@ -1990,6 +2066,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                   if (image != null) {
                     setState(() {
                       _selectedImages.add(image);
+                      _preCacheImage(_selectedImages.length - 1, image);
                     });
                   }
                 },
@@ -2011,6 +2088,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
                   if (image != null) {
                     setState(() {
                       _selectedImages.add(image);
+                      _preCacheImage(_selectedImages.length - 1, image);
                     });
                   }
                 },
@@ -2024,8 +2102,22 @@ class _EditBlogModalState extends State<EditBlogModal> {
       if (image != null) {
         setState(() {
           _selectedImages.add(image);
+          _preCacheImage(_selectedImages.length - 1, image);
         });
       }
+    }
+  }
+
+  Future<void> _preCacheImage(int index, XFile image) async {
+    try {
+      final bytes = await image.readAsBytes();
+      if (mounted) {
+        setState(() {
+          _imageCache[index] = bytes;
+        });
+      }
+    } catch (e) {
+      // Ignore cache errors
     }
   }
 
@@ -2092,8 +2184,79 @@ class _EditBlogModalState extends State<EditBlogModal> {
 
   void _removeNewImage(int index) {
     setState(() {
+      // Remove from cache
+      _imageCache.remove(index);
+
+      // Shift cache indices
+      final keysToUpdate = _imageCache.keys
+          .where((key) => key > index)
+          .toList();
+      for (final key in keysToUpdate) {
+        final bytes = _imageCache[key]!;
+        _imageCache.remove(key);
+        _imageCache[key - 1] = bytes;
+      }
+
       _selectedImages.removeAt(index);
     });
+  }
+
+  Widget _buildNewImagePreview(int index) {
+    if (_imageCache.containsKey(index)) {
+      // Display cached image
+      return Image.memory(
+        _imageCache[index]!,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildErrorImage();
+        },
+      );
+    } else {
+      // Show loading indicator while reading file
+      return FutureBuilder<Uint8List>(
+        future: _selectedImages[index].readAsBytes(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            );
+          } else if (snapshot.hasError) {
+            return _buildErrorImage();
+          } else if (snapshot.hasData) {
+            // Cache the bytes for future use
+            final bytes = snapshot.data!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && index < _selectedImages.length) {
+                setState(() {
+                  _imageCache[index] = bytes;
+                });
+              }
+            });
+
+            return Image.memory(
+              bytes,
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+            );
+          } else {
+            return _buildErrorImage();
+          }
+        },
+      );
+    }
+  }
+
+  Widget _buildErrorImage() {
+    return Container(
+      color: Colors.grey[200],
+      child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+    );
   }
 
   @override
@@ -2333,37 +2496,15 @@ class _EditBlogModalState extends State<EditBlogModal> {
                               height: 100,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(8),
-                                color: Theme.of(context).colorScheme.surface,
                                 border: Border.all(
                                   color: Theme.of(context).colorScheme.outline,
                                 ),
                               ),
                               child: Stack(
                                 children: [
-                                  Center(
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        Icon(
-                                          Icons.image,
-                                          size: 40,
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurface
-                                              .withOpacity(0.4),
-                                        ),
-                                        Text(
-                                          'New ${index + 1}',
-                                          style: TextStyle(
-                                            color: Theme.of(context)
-                                                .colorScheme
-                                                .onSurface
-                                                .withOpacity(0.6),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: _buildNewImagePreview(index),
                                   ),
                                   Positioned(
                                     top: 4,
@@ -2454,6 +2595,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _imageCache.clear();
     super.dispose();
   }
 }
@@ -2479,8 +2621,9 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
   final _storageService = StorageService();
   final BlogService _blogService = BlogService();
   bool _isSubmitting = false;
-  XFile? _commentImage;
+  final List<XFile> _selectedCommentImages = [];
   List<Comment> _comments = [];
+  final Map<int, Uint8List> _commentImageCache = {};
 
   @override
   void initState() {
@@ -2494,56 +2637,185 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
       setState(() {
         _comments = comments;
       });
-    } catch (e) {}
+    } catch (e) {
+      print('Error loading comments: $e');
+    }
   }
 
-  Future<void> _pickCommentImage() async {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library),
-              title: const Text('Choose from Gallery'),
-              onTap: () async {
-                Navigator.pop(context);
-                final image = await _storageService.pickImageFromGallery();
-                if (image != null) {
-                  setState(() {
-                    _commentImage = image;
-                  });
-                }
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take a Photo'),
-              onTap: () async {
-                Navigator.pop(context);
-                final image = await _storageService.pickImageFromCamera();
-                if (image != null) {
-                  setState(() {
-                    _commentImage = image;
-                  });
-                }
-              },
-            ),
-          ],
+  Future<void> _pickCommentImages() async {
+    try {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(
+                  Icons.photo_library,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                title: Text(
+                  'Choose from Gallery',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final images = await _storageService
+                      .pickMultipleImagesFromGallery();
+                  if (images != null && images.isNotEmpty) {
+                    setState(() {
+                      final startIndex = _selectedCommentImages.length;
+                      _selectedCommentImages.addAll(images);
+                      // Pre-cache images
+                      for (int i = 0; i < images.length; i++) {
+                        _preCacheCommentImage(startIndex + i, images[i]);
+                      }
+                    });
+                  }
+                },
+              ),
+              ListTile(
+                leading: Icon(
+                  Icons.camera_alt,
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
+                title: Text(
+                  'Take a Photo',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final image = await _storageService.pickImageFromCamera();
+                  if (image != null) {
+                    setState(() {
+                      _selectedCommentImages.add(image);
+                      _preCacheCommentImage(
+                        _selectedCommentImages.length - 1,
+                        image,
+                      );
+                    });
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      );
+    } catch (e) {
+      print('Error picking images: $e');
+      final image = await _storageService.pickImageFromGallery();
+      if (image != null) {
+        setState(() {
+          _selectedCommentImages.add(image);
+          _preCacheCommentImage(_selectedCommentImages.length - 1, image);
+        });
+      }
+    }
+  }
+
+  Future<void> _preCacheCommentImage(int index, XFile image) async {
+    try {
+      final bytes = await image.readAsBytes();
+      if (mounted) {
+        setState(() {
+          _commentImageCache[index] = bytes;
+        });
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+  }
+
+  void _removeCommentImage(int index) {
+    setState(() {
+      // Remove from cache
+      _commentImageCache.remove(index);
+
+      // Shift cache indices for images after the removed one
+      final keysToUpdate = _commentImageCache.keys
+          .where((key) => key > index)
+          .toList();
+      for (final key in keysToUpdate) {
+        final bytes = _commentImageCache[key]!;
+        _commentImageCache.remove(key);
+        _commentImageCache[key - 1] = bytes;
+      }
+
+      _selectedCommentImages.removeAt(index);
+    });
+  }
+
+  Widget _buildCommentImagePreview(int index) {
+    if (_commentImageCache.containsKey(index)) {
+      return Image.memory(
+        _commentImageCache[index]!,
+        width: 120,
+        height: 120,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildErrorImage();
+        },
+      );
+    } else {
+      return FutureBuilder<Uint8List>(
+        future: _selectedCommentImages[index].readAsBytes(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            );
+          } else if (snapshot.hasError) {
+            return _buildErrorImage();
+          } else if (snapshot.hasData) {
+            final bytes = snapshot.data!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && index < _selectedCommentImages.length) {
+                setState(() {
+                  _commentImageCache[index] = bytes;
+                });
+              }
+            });
+
+            return Image.memory(
+              bytes,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            );
+          } else {
+            return _buildErrorImage();
+          }
+        },
+      );
+    }
+  }
+
+  Widget _buildErrorImage() {
+    return Container(
+      width: 60,
+      height: 60,
+      color: Colors.grey[200],
+      child: const Center(
+        child: Icon(Icons.broken_image, size: 24, color: Colors.grey),
       ),
     );
   }
 
-  void _removeCommentImage() {
-    setState(() {
-      _commentImage = null;
-    });
-  }
-
   Future<void> _submitComment() async {
-    if (_commentController.text.trim().isEmpty && _commentImage == null) {
+    if (_commentController.text.trim().isEmpty &&
+        _selectedCommentImages.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please add text or an image to comment'),
@@ -2558,12 +2830,13 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     });
 
     try {
-      String? imageUrl;
+      List<String> imageUrls = [];
 
-      if (_commentImage != null) {
-        imageUrl = await _storageService.uploadImage(
+      if (_selectedCommentImages.isNotEmpty) {
+        imageUrls = await _storageService.uploadMultipleImages(
           bucket: 'comment-images',
-          imageFile: _commentImage!,
+          imageFiles: _selectedCommentImages,
+          customFileNamePrefix: 'comment',
         );
       }
 
@@ -2571,14 +2844,15 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
       await _blogService.createComment(
         postId: widget.blog.id,
         content: content.isNotEmpty ? content : null,
-        imageUrl: imageUrl,
+        imageUrls: imageUrls.isNotEmpty ? imageUrls : null,
       );
 
       await _loadComments();
 
       _commentController.clear();
       setState(() {
-        _commentImage = null;
+        _selectedCommentImages.clear();
+        _commentImageCache.clear();
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2599,6 +2873,54 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         _isSubmitting = false;
       });
     }
+  }
+
+  Future<void> _deleteComment(String commentId) async {
+    try {
+      await _blogService.deleteComment(commentId);
+
+      // Remove the comment from the local list
+      setState(() {
+        _comments.removeWhere((comment) => comment.id == commentId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Comment deleted successfully'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error deleting comment: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _showDeleteCommentDialog(String commentId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Comment'),
+        content: const Text('Are you sure you want to delete this comment?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _deleteComment(commentId);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -2819,6 +3141,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                       const SizedBox(height: 24),
                     ],
 
+                    // Comment section
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -2864,78 +3187,113 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                 icon: Icon(
                                   Icons.image,
                                   color: Theme.of(context).colorScheme.primary,
+                                  size: 20,
                                 ),
-                                onPressed: _pickCommentImage,
+                                onPressed: _pickCommentImages,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
                               ),
                             ],
                           ),
                         ),
                         const SizedBox(height: 8),
 
-                        if (_commentImage != null) ...[
-                          Container(
-                            height: 100,
-                            width: 100,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
+                        // Display selected comment images
+                        if (_selectedCommentImages.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            '${_selectedCommentImages.length} image(s) selected',
+                            style: TextStyle(
+                              fontSize: 12,
                               color: Theme.of(
                                 context,
-                              ).colorScheme.surfaceContainerHighest,
-                              border: Border.all(
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.outline.withOpacity(0.3),
-                              ),
+                              ).colorScheme.onSurface.withOpacity(0.6),
                             ),
-                            child: Stack(
-                              children: [
-                                Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.image,
-                                        size: 40,
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurfaceVariant
-                                            .withOpacity(0.4),
-                                      ),
-                                      Text(
-                                        'Selected',
-                                        style: TextStyle(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .onSurfaceVariant
-                                              .withOpacity(0.6),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: _removeCommentImage,
-                                    child: Container(
-                                      decoration: BoxDecoration(
+                          ),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 70,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _selectedCommentImages.length,
+                              itemBuilder: (context, index) {
+                                return Padding(
+                                  padding: const EdgeInsets.only(right: 8),
+                                  child: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
                                         color: Theme.of(
                                           context,
-                                        ).colorScheme.errorContainer,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Icon(
-                                        Icons.close,
-                                        size: 16,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onErrorContainer,
+                                        ).colorScheme.outline.withOpacity(0.3),
+                                        width: 1,
                                       ),
                                     ),
+                                    child: Stack(
+                                      children: [
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          child: _buildCommentImagePreview(
+                                            index,
+                                          ),
+                                        ),
+                                        Positioned(
+                                          top: 2,
+                                          right: 2,
+                                          child: GestureDetector(
+                                            onTap: () =>
+                                                _removeCommentImage(index),
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.errorContainer,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Icon(
+                                                Icons.close,
+                                                size: 16,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onErrorContainer,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                setState(() {
+                                  _selectedCommentImages.clear();
+                                  _commentImageCache.clear();
+                                });
+                              },
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
                                 ),
-                              ],
+                                minimumSize: const Size(0, 24),
+                              ),
+                              child: Text(
+                                'Remove All',
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontSize: 12,
+                                ),
+                              ),
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -2952,16 +3310,19 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                               foregroundColor: Theme.of(
                                 context,
                               ).colorScheme.onPrimary,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 8,
+                              ),
+                              minimumSize: const Size(0, 36),
                             ),
                             child: _isSubmitting
                                 ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
+                                    height: 16,
+                                    width: 16,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation(
-                                        Colors.white,
-                                      ),
+                                      color: Colors.white,
                                     ),
                                   )
                                 : const Text('Post Comment'),
@@ -3009,6 +3370,9 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                               return CommentCard(
                                 comment: comment,
                                 showActions: isCommentAuthor,
+                                onDelete: isCommentAuthor
+                                    ? () => _showDeleteCommentDialog(comment.id)
+                                    : null,
                               );
                             },
                           );
@@ -3147,14 +3511,11 @@ class BlogSearchDelegate extends SearchDelegate<String> {
 
   @override
   Widget buildResults(BuildContext context) {
-    print('📊 buildResults called with query: "$query"');
     return _buildSearchContent(context);
   }
 
   @override
   Widget buildSuggestions(BuildContext context) {
-    print('💡 buildSuggestions called with query: "$query"');
-
     if (query.isEmpty) {
       return _buildEmptySuggestions(context);
     }
@@ -3164,7 +3525,6 @@ class BlogSearchDelegate extends SearchDelegate<String> {
     }
 
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
-      print('⏰ Debounce timer fired for query: "$query"');
       if (query.isNotEmpty) {
         _performSearch(context);
       }
@@ -3239,13 +3599,7 @@ class BlogSearchDelegate extends SearchDelegate<String> {
   }
 
   Widget _buildSearchContent(BuildContext context) {
-    print('🎨 _buildSearchContent called');
-    print('   Query: "$query"');
-    print('   Is loading: $_isLoading');
-    print('   Results count: ${_searchResults.length}');
-
     if (_isLoading) {
-      print('   Showing loading state');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -3262,12 +3616,10 @@ class BlogSearchDelegate extends SearchDelegate<String> {
     }
 
     if (query.isEmpty) {
-      print('   Query empty, showing suggestions');
       return _buildEmptySuggestions(context);
     }
 
     if (_searchResults.isEmpty) {
-      print('   No results to show');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -3292,14 +3644,11 @@ class BlogSearchDelegate extends SearchDelegate<String> {
       );
     }
 
-    print('   ✅ Showing ${_searchResults.length} results');
-
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: _searchResults.length,
       itemBuilder: (context, index) {
         final blog = _searchResults[index];
-        print('   Rendering blog #$index: ${blog.title}');
 
         return BlogCard(
           blog: blog,
@@ -3363,41 +3712,28 @@ class BlogSearchDelegate extends SearchDelegate<String> {
   }
 
   Future<void> _performSearch(BuildContext context) async {
-    print('🚀 _performSearch started for: "$query"');
-
     if (query.isEmpty) {
-      print('   Query is empty, returning');
       return;
     }
 
     _isLoading = true;
-    print('   Set isLoading = true');
 
     if (context.mounted) {
-      print('   Triggering UI rebuild for loading state');
       showResults(context);
     }
 
     try {
-      print('   Calling searchService.searchBlogs...');
       final results = await _searchService.searchBlogs(query);
-      print('   Search returned ${results.length} results');
 
       _searchResults = results;
       _isLoading = false;
-      print('   Set isLoading = false, results = ${results.length}');
 
       if (context.mounted) {
-        print('   Triggering UI rebuild with results');
         showResults(context);
       }
     } catch (e, stackTrace) {
-      print('❌ ERROR in _performSearch: $e');
-      print('Stack trace: $stackTrace');
-
       _isLoading = false;
       _searchResults = [];
-      print('   Set isLoading = false, cleared results due to error');
 
       if (context.mounted) {
         showResults(context);

@@ -3,7 +3,7 @@ class Comment {
   final String postId;
   final String userId;
   final String? content;
-  final String? imageUrl;
+  final List<String>? imageUrls;
   final DateTime createdAt;
   final String authorName;
   final String? authorPhoto;
@@ -15,7 +15,7 @@ class Comment {
     required this.postId,
     required this.userId,
     this.content,
-    this.imageUrl,
+    this.imageUrls,
     required this.createdAt,
     required this.authorName,
     this.authorPhoto,
@@ -31,7 +31,9 @@ class Comment {
       postId: json['post_id'] as String,
       userId: json['user_id'] as String,
       content: json['content'] as String?,
-      imageUrl: json['image_url'] as String?,
+      imageUrls: json['image_urls'] != null
+          ? List<String>.from(json['image_urls'] as List<dynamic>)
+          : (json['image_url'] != null ? [json['image_url'] as String] : null),
       createdAt: DateTime.parse(json['created_at'] as String),
       authorName: users?['display_name'] as String? ?? 'Unknown',
       authorPhoto: users?['profile_photo_url'] as String?,

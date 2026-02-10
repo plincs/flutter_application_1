@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../services/auth_service.dart';
 import '../../services/storage_service.dart';
 import '../../services/user_service.dart';
+import 'dart:typed_data';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -20,7 +21,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _displayNameController = TextEditingController();
   final _storageService = StorageService();
   final _userService = UserService();
+  final _picker = ImagePicker();
+
   XFile? _selectedImage;
+  Uint8List? _selectedImageBytes;
   bool _isLoading = false;
   String? _errorMessage;
   bool _isMounted = true;
@@ -37,10 +41,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final image = await _storageService.pickImageFromGallery();
+      final image = await _picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 85,
+      );
       if (_isMounted && image != null) {
+        final bytes = await image.readAsBytes();
         setState(() {
           _selectedImage = image;
+          _selectedImageBytes = bytes;
         });
       }
     } catch (e) {
@@ -74,12 +85,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     try {
       final authService = Provider.of<AuthService>(context, listen: false);
 
-      // IMPORTANT: Clear any existing session before registration
       if (authService.isAuthenticated) {
         await authService.signOut();
       }
 
-      // Step 1: Create user in Supabase Auth
       print('📝 Step 1: Creating user in Supabase Auth...');
       final authResponse = await authService.signUp(
         email: _emailController.text,
@@ -87,7 +96,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         displayName: _displayNameController.text,
       );
 
-      // Check if user was created successfully
       if (authResponse == null || authResponse.user == null) {
         throw Exception('User registration failed - no user created');
       }
@@ -95,10 +103,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       final currentUser = authResponse.user;
       print('✅ Step 1 complete: User ${currentUser!.id} created');
 
-      // Wait a moment for Supabase to fully process the registration
       await Future.delayed(const Duration(milliseconds: 500));
 
-      // Step 2: Upload profile image (optional)
       String? profilePhotoUrl;
       if (_selectedImage != null) {
         print('📸 Step 2: Uploading profile image...');
@@ -109,7 +115,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         print('✅ Profile image uploaded: $profilePhotoUrl');
       }
 
-      // Step 3: Update user profile with additional info
       print('👤 Step 3: Creating user profile...');
       await _userService.updateUserProfile(
         displayName: _displayNameController.text,
@@ -117,10 +122,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         profilePhotoUrl: profilePhotoUrl,
       );
 
-      // Step 4: Wait a bit more for profile to be fully created
       await Future.delayed(const Duration(milliseconds: 300));
 
-      // Step 5: Force reload of user data with retry logic
       print('🔄 Step 5: Reloading user data...');
       bool userLoaded = false;
       int retryCount = 0;
@@ -150,13 +153,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       print('🎉 Registration complete!');
 
-      // Clear all form fields
       _emailController.clear();
       _passwordController.clear();
       _confirmPasswordController.clear();
       _displayNameController.clear();
 
-      // Success - navigate to home
       if (_isMounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           Navigator.of(
@@ -167,7 +168,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } catch (e) {
       print('❌ Registration error: $e');
 
-      // Always sign out on error to clean up state
       try {
         final authService = Provider.of<AuthService>(context, listen: false);
         await authService.signOut();
@@ -177,7 +177,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       String errorMessage;
 
-      // Parse specific error messages
       final errorString = e.toString().toLowerCase();
 
       if (errorString.contains('already registered') ||
@@ -200,7 +199,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           errorString.contains('too many requests')) {
         errorMessage = 'Too many attempts. Please try again later.';
       } else {
-        // Extract the first line of error message
         final lines = e.toString().split('\n');
         errorMessage = lines.isNotEmpty
             ? lines.first
@@ -217,7 +215,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
 
-      // Show error snackbar
       if (_isMounted) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -288,25 +285,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: Colors.grey[200],
                         border: Border.all(color: Colors.grey[300]!, width: 2),
                       ),
-                      child: _selectedImage != null
+                      child: _selectedImageBytes != null
                           ? ClipOval(
-                              child: FutureBuilder(
-                                future: _selectedImage!.readAsBytes(),
-                                builder: (context, snapshot) {
-                                  if (snapshot.hasData) {
-                                    return Image.memory(
-                                      snapshot.data!,
-                                      width: 100,
-                                      height: 100,
-                                      fit: BoxFit.cover,
-                                    );
-                                  }
-                                  return Center(
-                                    child: CircularProgressIndicator(
-                                      color: Colors.blue[400],
-                                    ),
-                                  );
-                                },
+                              child: Image.memory(
+                                _selectedImageBytes!,
+                                width: 100,
+                                height: 100,
+                                fit: BoxFit.cover,
                               ),
                             )
                           : const Icon(

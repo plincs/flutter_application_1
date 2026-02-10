@@ -1,22 +1,20 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'blog_service.dart';
 
 class UserService {
   final _supabase = Supabase.instance.client;
 
-  // Update user profile - GETS userId from current authenticated user
   Future<void> updateUserProfile({
     required String displayName,
     String? bio,
     String? profilePhotoUrl,
   }) async {
     try {
-      // Get the current authenticated user
       final user = _supabase.auth.currentUser;
       if (user == null) {
         throw Exception('User not authenticated');
       }
 
-      // Get the user's email from auth
       final userEmail = user.email;
       if (userEmail == null) {
         throw Exception('User email not found');
@@ -25,20 +23,19 @@ class UserService {
       await _supabase
           .from('users')
           .update({
-            'email': userEmail, // Make sure email is included
+            'email': userEmail,
             'display_name': displayName,
             'bio': bio,
             'profile_photo_url': profilePhotoUrl,
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
-          .eq('id', user.id); // Use the authenticated user's ID
+          .eq('id', user.id);
     } catch (e) {
       print('Error updating user profile: $e');
       rethrow;
     }
   }
 
-  // Get user by ID (for getting other users' profiles)
   Future<Map<String, dynamic>?> getUserById(String userId) async {
     try {
       final response = await _supabase
@@ -54,7 +51,6 @@ class UserService {
     }
   }
 
-  // Get current user's profile
   Future<Map<String, dynamic>?> getCurrentUserProfile() async {
     try {
       final user = _supabase.auth.currentUser;
@@ -73,9 +69,6 @@ class UserService {
     }
   }
 
-  // ============ ADD THESE MISSING METHODS ============
-
-  // Get follower count for a user
   Future<int> getFollowerCount(String userId) async {
     try {
       final data = await _supabase
@@ -90,7 +83,6 @@ class UserService {
     }
   }
 
-  // Get following count for a user
   Future<int> getFollowingCount(String userId) async {
     try {
       final data = await _supabase
@@ -102,6 +94,29 @@ class UserService {
     } catch (e) {
       print('Error getting following count: $e');
       return 0;
+    }
+  }
+
+  Future<void> updateProfilePhotoAndRefreshPosts({
+    required String userId,
+    required String profilePhotoUrl,
+  }) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      await updateUserProfile(
+        displayName: user.userMetadata?['display_name'] ?? user.email ?? '',
+        profilePhotoUrl: profilePhotoUrl,
+      );
+
+      final blogService = BlogService();
+      await blogService.refreshUserProfilePhoto(userId, profilePhotoUrl);
+    } catch (e) {
+      print('Error updating profile photo and refreshing posts: $e');
+      rethrow;
     }
   }
 }

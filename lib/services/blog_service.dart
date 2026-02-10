@@ -384,7 +384,7 @@ class BlogService {
   Future<Comment> createComment({
     required String postId,
     String? content,
-    String? imageUrl,
+    List<String>? imageUrls,
   }) async {
     try {
       final user = _supabase.auth.currentUser;
@@ -392,7 +392,8 @@ class BlogService {
         throw Exception('User not authenticated');
       }
 
-      if ((content == null || content.isEmpty) && imageUrl == null) {
+      if ((content == null || content.isEmpty) &&
+          (imageUrls == null || imageUrls.isEmpty)) {
         throw Exception('Comment must have either text or image');
       }
 
@@ -402,7 +403,7 @@ class BlogService {
             'post_id': postId,
             'user_id': user.id,
             'content': content,
-            'image_url': imageUrl,
+            'image_urls': imageUrls ?? [],
           })
           .select('''
             *,
@@ -424,7 +425,7 @@ class BlogService {
   Future<Comment> updateComment({
     required String id,
     String? content,
-    String? imageUrl,
+    List<String>? imageUrls,
   }) async {
     try {
       final user = _supabase.auth.currentUser;
@@ -432,13 +433,14 @@ class BlogService {
         throw Exception('User not authenticated');
       }
 
-      if ((content == null || content.isEmpty) && imageUrl == null) {
+      if ((content == null || content.isEmpty) &&
+          (imageUrls == null || imageUrls.isEmpty)) {
         throw Exception('Comment must have either text or image');
       }
 
       final response = await _supabase
           .from('comments')
-          .update({'content': content, 'image_url': imageUrl})
+          .update({'content': content, 'image_urls': imageUrls})
           .eq('id', id)
           .eq('user_id', user.id)
           .select('''
@@ -658,6 +660,52 @@ class BlogService {
       return {'total': total, 'current_user_reaction': currentUserReaction};
     } catch (e) {
       return {'total': 0, 'current_user_reaction': null};
+    }
+  }
+
+  Future<void> refreshUserProfilePhoto(
+    String userId,
+    String newPhotoUrl,
+  ) async {
+    try {
+      return;
+    } catch (e) {
+      print('Error refreshing profile photo in posts: $e');
+    }
+  }
+
+  Future<List<BlogPost>> refreshBlogPostsWithUpdatedProfile(
+    String userId,
+    String newPhotoUrl,
+  ) async {
+    try {
+      return await getBlogPosts();
+    } catch (e) {
+      print('Error refreshing posts with updated profile: $e');
+      return await getBlogPosts();
+    }
+  }
+
+  // Added from your version - this updates cached author info in posts
+  Future<void> updateAuthorInfoInPosts({
+    required String userId,
+    String? newDisplayName,
+    String? newProfilePhotoUrl,
+  }) async {
+    try {
+      final updates = <String, dynamic>{};
+      if (newDisplayName != null) {
+        updates['author_name'] = newDisplayName;
+      }
+      if (newProfilePhotoUrl != null) {
+        updates['author_photo_url'] = newProfilePhotoUrl;
+      }
+
+      if (updates.isEmpty) return;
+
+      await _supabase.from('blog_posts').update(updates).eq('user_id', userId);
+    } catch (e) {
+      print('Error updating author info in posts: $e');
     }
   }
 }

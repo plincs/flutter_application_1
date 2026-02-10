@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data'; // Add this import
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -14,6 +15,7 @@ class _CreateBlogScreenState extends State<CreateBlogScreen> {
   final _titleController = TextEditingController();
   final _contentController = TextEditingController();
   final List<File> _selectedImages = [];
+  final Map<int, Uint8List> _imageCache = {}; // Cache for image bytes
   bool _isLoading = false;
 
   Future<void> _pickImages() async {
@@ -26,7 +28,20 @@ class _CreateBlogScreenState extends State<CreateBlogScreen> {
 
     if (pickedFiles.isNotEmpty) {
       setState(() {
-        _selectedImages.addAll(pickedFiles.map((file) => File(file.path)));
+        // Add new images and pre-cache their bytes
+        for (final pickedFile in pickedFiles) {
+          final file = File(pickedFile.path);
+          _selectedImages.add(file);
+
+          // Pre-cache the image bytes for immediate display
+          file.readAsBytes().then((bytes) {
+            if (mounted) {
+              setState(() {
+                _imageCache[_selectedImages.indexOf(file)] = bytes;
+              });
+            }
+          });
+        }
       });
     }
   }
@@ -42,13 +57,36 @@ class _CreateBlogScreenState extends State<CreateBlogScreen> {
 
     if (pickedFile != null) {
       setState(() {
-        _selectedImages.add(File(pickedFile.path));
+        final file = File(pickedFile.path);
+        _selectedImages.add(file);
+
+        // Pre-cache the image bytes
+        file.readAsBytes().then((bytes) {
+          if (mounted) {
+            setState(() {
+              _imageCache[_selectedImages.indexOf(file)] = bytes;
+            });
+          }
+        });
       });
     }
   }
 
   void _removeImage(int index) {
     setState(() {
+      // Remove from cache
+      _imageCache.remove(index);
+
+      // Shift cache indices for images after the removed one
+      final keysToUpdate = _imageCache.keys
+          .where((key) => key > index)
+          .toList();
+      for (final key in keysToUpdate) {
+        final bytes = _imageCache[key]!;
+        _imageCache.remove(key);
+        _imageCache[key - 1] = bytes;
+      }
+
       _selectedImages.removeAt(index);
     });
   }
@@ -86,6 +124,65 @@ class _CreateBlogScreenState extends State<CreateBlogScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // Helper widget for image preview with loading
+  Widget _buildImagePreview(int index) {
+    if (_imageCache.containsKey(index)) {
+      // Display cached image
+      return Image.memory(
+        _imageCache[index]!,
+        width: 100,
+        height: 100,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return _buildErrorImage();
+        },
+      );
+    } else {
+      // Show loading indicator while reading file
+      return FutureBuilder<Uint8List>(
+        future: _selectedImages[index].readAsBytes(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            );
+          } else if (snapshot.hasError) {
+            return _buildErrorImage();
+          } else if (snapshot.hasData) {
+            // Cache the bytes for future use
+            final bytes = snapshot.data!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && index < _selectedImages.length) {
+                setState(() {
+                  _imageCache[index] = bytes;
+                });
+              }
+            });
+
+            return Image.memory(
+              bytes,
+              width: 100,
+              height: 100,
+              fit: BoxFit.cover,
+            );
+          } else {
+            return _buildErrorImage();
+          }
+        },
+      );
+    }
+  }
+
+  Widget _buildErrorImage() {
+    return Container(
+      color: Colors.grey[200],
+      child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+    );
   }
 
   @override
@@ -226,10 +323,15 @@ class _CreateBlogScreenState extends State<CreateBlogScreen> {
                                   height: 100,
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(8),
-                                    image: DecorationImage(
-                                      image: FileImage(_selectedImages[index]),
-                                      fit: BoxFit.cover,
+                                    border: Border.all(
+                                      color: Colors.grey[300]!,
+                                      width: 1,
                                     ),
+                                    color: Colors.grey[50],
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: _buildImagePreview(index),
                                   ),
                                 ),
                                 Positioned(
@@ -296,6 +398,7 @@ class _CreateBlogScreenState extends State<CreateBlogScreen> {
   void dispose() {
     _titleController.dispose();
     _contentController.dispose();
+    _imageCache.clear();
     super.dispose();
   }
 }
