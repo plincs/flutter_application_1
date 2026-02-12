@@ -3296,8 +3296,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
   ) async {
     try {
       final bytes = await image.readAsBytes();
-      // Check if the dialog is still mounted (you can't directly check here)
-      // We'll use a try-catch around the setState
       try {
         dialogSetState(() {
           cache[index] = bytes;
@@ -3314,7 +3312,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     Map<int, Uint8List> cache,
     List<XFile> images,
     int index,
-    void Function(void Function()) dialogSetState, // Accept dialogSetState
+    void Function(void Function()) dialogSetState,
   ) {
     if (cache.containsKey(index)) {
       return Image.memory(
@@ -3348,8 +3346,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
           } else if (snapshot.hasData) {
             final bytes = snapshot.data!;
             WidgetsBinding.instance.addPostFrameCallback((_) {
-              // Check if the dialog is still mounted (can't directly check here)
-              // Use the provided dialogSetState
               dialogSetState(() {
                 cache[index] = bytes;
               });

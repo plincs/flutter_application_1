@@ -464,7 +464,6 @@ class BlogService {
     }
   }
 
-  // ✅ FIXED: Proper editComment method with complete implementation
   Future<Comment> editComment({
     required String commentId,
     String? content,
@@ -476,7 +475,6 @@ class BlogService {
         throw Exception('User not authenticated');
       }
 
-      // Check if user owns this comment
       final commentCheck = await _supabase
           .from('comments')
           .select('user_id')
@@ -663,7 +661,6 @@ class BlogService {
         throw Exception('User not authenticated');
       }
 
-      // Check if user already has a reaction
       final existingReaction = await _supabase
           .from('comment_reactions')
           .select('reaction_type_id')
@@ -675,13 +672,11 @@ class BlogService {
         final existingTypeId = existingReaction['reaction_type_id'] as String;
 
         if (existingTypeId == reactionTypeId) {
-          // Remove if same reaction
           await removeCommentReaction(
             commentId: commentId,
             reactionTypeId: reactionTypeId,
           );
         } else {
-          // Update to new reaction type
           await _supabase
               .from('comment_reactions')
               .update({'reaction_type_id': reactionTypeId})
@@ -689,7 +684,6 @@ class BlogService {
               .eq('user_id', user.id);
         }
       } else {
-        // Insert new reaction
         await _supabase.from('comment_reactions').insert({
           'comment_id': commentId,
           'user_id': user.id,
@@ -735,7 +729,6 @@ class BlogService {
 
       final reactions = response;
 
-      // Group by reaction type
       final reactionCounts = <String, int>{};
       for (final reaction in reactions) {
         final typeId = reaction['reaction_type_id'] as String;
@@ -784,7 +777,6 @@ class BlogService {
     }
   }
 
-  // Added from your version - this updates cached author info in posts
   Future<void> updateAuthorInfoInPosts({
     required String userId,
     String? newDisplayName,

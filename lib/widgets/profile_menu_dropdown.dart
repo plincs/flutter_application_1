@@ -28,7 +28,6 @@ class ProfileMenuDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Safely get the first character of user name
     final userInitial = userName.isNotEmpty
         ? userName.substring(0, 1).toUpperCase()
         : '?';
@@ -52,7 +51,6 @@ class ProfileMenuDropdown extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // User info section
           Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -148,14 +146,12 @@ class ProfileMenuDropdown extends StatelessWidget {
             ),
           ),
 
-          // Menu items
           ..._buildMenuItems(context),
         ],
       ),
     );
   }
 
-  // FIXED: Added context parameter
   Widget _buildProfileFallback(String initial, BuildContext context) {
     return Container(
       color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
@@ -174,7 +170,6 @@ class ProfileMenuDropdown extends StatelessWidget {
 
   List<Widget> _buildMenuItems(BuildContext context) {
     if (!isLoggedIn) {
-      // Show only Sign In button for logged-out users
       return [
         Divider(height: 1, color: Theme.of(context).dividerColor),
         _MenuItem(
@@ -186,7 +181,6 @@ class ProfileMenuDropdown extends StatelessWidget {
       ];
     }
 
-    // Show simplified menu for logged-in users
     return [
       Divider(height: 1, color: Theme.of(context).dividerColor),
       _MenuItem(

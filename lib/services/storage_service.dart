@@ -71,7 +71,6 @@ class StorageService {
     }
   }
 
-  // NEW METHOD: Upload multiple images at once (from my version)
   Future<List<String>> uploadMultipleImages({
     required String bucket,
     required List<XFile> imageFiles,
@@ -183,12 +182,11 @@ class StorageService {
     }
   }
 
-  // NEW METHOD: Pick multiple images from gallery (from my version)
   Future<List<XFile>?> pickMultipleImagesFromGallery({
     int maxWidth = 1920,
     int maxHeight = 1080,
     int imageQuality = 85,
-    int maxImages = 10, // Limit number of images user can select
+    int maxImages = 10,
   }) async {
     try {
       final pickedFiles = await _picker.pickMultiImage(
@@ -289,7 +287,6 @@ class StorageService {
     return url;
   }
 
-  // NEW METHOD: Delete multiple comment images (from my version)
   Future<void> deleteCommentImages(List<String> imageUrls) async {
     try {
       final user = _supabase.auth.currentUser;
@@ -320,7 +317,6 @@ class StorageService {
     }
   }
 
-  // Convenience method for uploading multiple comment images (from my version)
   Future<List<String>> uploadCommentImages(
     List<XFile> imageFiles, {
     String? fileNamePrefix,
@@ -342,7 +338,6 @@ class StorageService {
     );
   }
 
-  // Convenience method for uploading multiple blog images (from my version)
   Future<List<String>> uploadBlogImages(
     List<XFile> imageFiles, {
     String? fileNamePrefix,
@@ -456,7 +451,6 @@ class StorageService {
     }
   }
 
-  // Note: Your original deleteCommentImage method remains unchanged
   Future<void> deleteCommentImage(String imageUrl) async {
     try {
       final user = _supabase.auth.currentUser;

@@ -1380,7 +1380,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Send Button
                       if (isSubmitting)
                         const Center(child: CircularProgressIndicator())
                       else
