@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:typed_data'; // Add this import
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1494,7 +1494,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
   bool _isSubmitting = false;
   final List<XFile> _selectedImages = [];
   final List<String> _uploadedImageUrls = [];
-  final Map<int, Uint8List> _imageCache = {}; // Cache for image bytes
+  final Map<int, Uint8List> _imageCache = {};
 
   Future<void> _pickImage() async {
     try {
@@ -1525,7 +1525,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                   if (image != null) {
                     setState(() {
                       _selectedImages.add(image);
-                      // Pre-cache image
                       _preCacheImage(_selectedImages.length - 1, image);
                     });
                   }
@@ -1548,7 +1547,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                   if (image != null) {
                     setState(() {
                       _selectedImages.add(image);
-                      // Pre-cache image
                       _preCacheImage(_selectedImages.length - 1, image);
                     });
                   }
@@ -1641,10 +1639,8 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
 
   void _removeImage(int index) {
     setState(() {
-      // Remove from cache
       _imageCache.remove(index);
 
-      // Shift cache indices for images after the removed one
       final keysToUpdate = _imageCache.keys
           .where((key) => key > index)
           .toList();
@@ -1660,7 +1656,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
 
   Widget _buildImagePreview(int index) {
     if (_imageCache.containsKey(index)) {
-      // Display cached image
       return Image.memory(
         _imageCache[index]!,
         width: 100,
@@ -1671,7 +1666,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
         },
       );
     } else {
-      // Show loading indicator while reading file
       return FutureBuilder<Uint8List>(
         future: _selectedImages[index].readAsBytes(),
         builder: (context, snapshot) {
@@ -1685,7 +1679,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
           } else if (snapshot.hasError) {
             return _buildErrorImage();
           } else if (snapshot.hasData) {
-            // Cache the bytes for future use
             final bytes = snapshot.data!;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted && index < _selectedImages.length) {
@@ -2027,7 +2020,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
   final List<XFile> _selectedImages = [];
   final List<String> _uploadedImageUrls = [];
   List<String> _existingImageUrls = [];
-  final Map<int, Uint8List> _imageCache = {}; // Cache for new images
+  final Map<int, Uint8List> _imageCache = {};
 
   @override
   void initState() {
@@ -2116,9 +2109,7 @@ class _EditBlogModalState extends State<EditBlogModal> {
           _imageCache[index] = bytes;
         });
       }
-    } catch (e) {
-      // Ignore cache errors
-    }
+    } catch (e) {}
   }
 
   Future<void> _uploadImages() async {
@@ -2184,10 +2175,8 @@ class _EditBlogModalState extends State<EditBlogModal> {
 
   void _removeNewImage(int index) {
     setState(() {
-      // Remove from cache
       _imageCache.remove(index);
 
-      // Shift cache indices
       final keysToUpdate = _imageCache.keys
           .where((key) => key > index)
           .toList();
@@ -2203,7 +2192,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
 
   Widget _buildNewImagePreview(int index) {
     if (_imageCache.containsKey(index)) {
-      // Display cached image
       return Image.memory(
         _imageCache[index]!,
         width: 100,
@@ -2214,7 +2202,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
         },
       );
     } else {
-      // Show loading indicator while reading file
       return FutureBuilder<Uint8List>(
         future: _selectedImages[index].readAsBytes(),
         builder: (context, snapshot) {
@@ -2228,7 +2215,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
           } else if (snapshot.hasError) {
             return _buildErrorImage();
           } else if (snapshot.hasData) {
-            // Cache the bytes for future use
             final bytes = snapshot.data!;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted && index < _selectedImages.length) {
@@ -2673,7 +2659,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                     setState(() {
                       final startIndex = _selectedCommentImages.length;
                       _selectedCommentImages.addAll(images);
-                      // Pre-cache images
                       for (int i = 0; i < images.length; i++) {
                         _preCacheCommentImage(startIndex + i, images[i]);
                       }
@@ -2731,16 +2716,14 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         });
       }
     } catch (e) {
-      // Ignore cache errors
+      // Ignore caching errors for comments
     }
   }
 
   void _removeCommentImage(int index) {
     setState(() {
-      // Remove from cache
       _commentImageCache.remove(index);
 
-      // Shift cache indices for images after the removed one
       final keysToUpdate = _commentImageCache.keys
           .where((key) => key > index)
           .toList();
@@ -2758,8 +2741,8 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     if (_commentImageCache.containsKey(index)) {
       return Image.memory(
         _commentImageCache[index]!,
-        width: 120,
-        height: 120,
+        width: 40,
+        height: 40,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return _buildErrorImage();
@@ -2780,18 +2763,22 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
             return _buildErrorImage();
           } else if (snapshot.hasData) {
             final bytes = snapshot.data!;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && index < _selectedCommentImages.length) {
-                setState(() {
-                  _commentImageCache[index] = bytes;
-                });
-              }
-            });
-
+            // FIX: Don't use addPostFrameCallback here - it's causing the issue
+            // Instead, cache the image without setState first, then use a microtask
+            if (!_commentImageCache.containsKey(index)) {
+              // Use scheduleMicrotask instead of addPostFrameCallback
+              scheduleMicrotask(() {
+                if (mounted && index < _selectedCommentImages.length) {
+                  setState(() {
+                    _commentImageCache[index] = bytes;
+                  });
+                }
+              });
+            }
             return Image.memory(
               bytes,
-              width: 60,
-              height: 60,
+              width: 40,
+              height: 40,
               fit: BoxFit.cover,
             );
           } else {
@@ -2804,11 +2791,11 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
 
   Widget _buildErrorImage() {
     return Container(
-      width: 60,
-      height: 60,
+      width: 40,
+      height: 40,
       color: Colors.grey[200],
       child: const Center(
-        child: Icon(Icons.broken_image, size: 24, color: Colors.grey),
+        child: Icon(Icons.broken_image, size: 20, color: Colors.grey),
       ),
     );
   }
@@ -2855,23 +2842,532 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         _commentImageCache.clear();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Comment added successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Comment added successfully!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isSubmitting = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _editComment(Comment comment) async {
+    final TextEditingController editController = TextEditingController(
+      text: comment.content,
+    );
+    List<String> currentImageUrls = List.from(comment.imageUrls ?? []);
+    List<XFile> newSelectedImages = [];
+    final Map<int, Uint8List> editImageCache = {};
+
+    final BuildContext dialogContext = context; // Save reference to context
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, dialogSetState) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Container(
+                width: MediaQuery.of(context).size.width * 0.9,
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.7,
+                ),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Edit Comment',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: editController,
+                      decoration: const InputDecoration(
+                        hintText: 'Edit your comment...',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      minLines: 2,
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (currentImageUrls.isNotEmpty) ...[
+                      const Text(
+                        'Current Images:',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 70,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: currentImageUrls.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      image: DecorationImage(
+                                        image: NetworkImage(
+                                          currentImageUrls[index],
+                                        ),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        dialogSetState(() {
+                                          currentImageUrls.removeAt(index);
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () async {
+                            try {
+                              final images = await _storageService
+                                  .pickMultipleImagesFromGallery();
+                              if (images != null && images.isNotEmpty) {
+                                if (context.mounted) {
+                                  dialogSetState(() {
+                                    newSelectedImages.addAll(images);
+                                  });
+                                  // Cache images after adding
+                                  for (int i = 0; i < images.length; i++) {
+                                    try {
+                                      final bytes = await images[i]
+                                          .readAsBytes();
+                                      if (context.mounted) {
+                                        dialogSetState(() {
+                                          editImageCache[newSelectedImages
+                                                      .length -
+                                                  images.length +
+                                                  i] =
+                                              bytes;
+                                        });
+                                      }
+                                    } catch (e) {
+                                      // Ignore cache errors
+                                    }
+                                  }
+                                }
+                              }
+                            } catch (e) {
+                              // Handle error silently
+                            }
+                          },
+                          icon: const Icon(Icons.add_photo_alternate),
+                          label: const Text('Add Images'),
+                        ),
+                      ],
+                    ),
+
+                    if (newSelectedImages.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      const Text(
+                        'New Images:',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 70,
+                        child: ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: newSelectedImages.length,
+                          itemBuilder: (context, index) {
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Stack(
+                                children: [
+                                  Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(6),
+                                      child: editImageCache.containsKey(index)
+                                          ? Image.memory(
+                                              editImageCache[index]!,
+                                              width: 60,
+                                              height: 60,
+                                              fit: BoxFit.cover,
+                                              errorBuilder:
+                                                  (context, error, stackTrace) {
+                                                    return Container(
+                                                      color: Colors.grey[200],
+                                                      child: const Icon(
+                                                        Icons.broken_image,
+                                                        color: Colors.grey,
+                                                      ),
+                                                    );
+                                                  },
+                                            )
+                                          : FutureBuilder<Uint8List>(
+                                              future: newSelectedImages[index]
+                                                  .readAsBytes(),
+                                              builder: (context, snapshot) {
+                                                if (snapshot.connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  return Center(
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary,
+                                                        ),
+                                                  );
+                                                } else if (snapshot.hasError) {
+                                                  return Container(
+                                                    color: Colors.grey[200],
+                                                    child: const Icon(
+                                                      Icons.broken_image,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  );
+                                                } else if (snapshot.hasData) {
+                                                  final bytes = snapshot.data!;
+                                                  WidgetsBinding.instance
+                                                      .addPostFrameCallback((
+                                                        _,
+                                                      ) {
+                                                        if (context.mounted) {
+                                                          dialogSetState(() {
+                                                            editImageCache[index] =
+                                                                bytes;
+                                                          });
+                                                        }
+                                                      });
+                                                  return Image.memory(
+                                                    bytes,
+                                                    width: 60,
+                                                    height: 60,
+                                                    fit: BoxFit.cover,
+                                                  );
+                                                } else {
+                                                  return Container(
+                                                    color: Colors.grey[200],
+                                                    child: const Icon(
+                                                      Icons.image,
+                                                      color: Colors.grey,
+                                                    ),
+                                                  );
+                                                }
+                                              },
+                                            ),
+                                    ),
+                                  ),
+                                  Positioned(
+                                    top: 2,
+                                    right: 2,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        dialogSetState(() {
+                                          newSelectedImages.removeAt(index);
+                                          editImageCache.remove(index);
+                                          // Reindex remaining images
+                                          final updatedCache =
+                                              <int, Uint8List>{};
+                                          for (
+                                            int i = 0;
+                                            i < newSelectedImages.length;
+                                            i++
+                                          ) {
+                                            if (editImageCache.containsKey(
+                                              i + 1,
+                                            )) {
+                                              updatedCache[i] =
+                                                  editImageCache[i + 1]!;
+                                            }
+                                          }
+                                          editImageCache.clear();
+                                          editImageCache.addAll(updatedCache);
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: const BoxDecoration(
+                                          color: Colors.red,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 24),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: () async {
+                            // Close dialog first
+                            Navigator.pop(context);
+
+                            // Use a mounted check before any state operations
+                            if (!mounted) return;
+
+                            setState(() {
+                              _isSubmitting = true;
+                            });
+
+                            try {
+                              List<String> uploadedImageUrls = [];
+
+                              if (newSelectedImages.isNotEmpty) {
+                                uploadedImageUrls = await _storageService
+                                    .uploadMultipleImages(
+                                      bucket: 'comment-images',
+                                      imageFiles: newSelectedImages,
+                                      customFileNamePrefix: 'comment',
+                                    );
+                              }
+
+                              final allImageUrls = [
+                                ...currentImageUrls,
+                                ...uploadedImageUrls,
+                              ];
+
+                              final content = editController.text.trim();
+
+                              await _blogService.editComment(
+                                commentId: comment.id,
+                                content: content.isNotEmpty ? content : null,
+                                imageUrls: allImageUrls.isNotEmpty
+                                    ? allImageUrls
+                                    : null,
+                              );
+
+                              await _loadComments();
+
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Comment updated successfully',
+                                    ),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              print('Error updating comment: $e');
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Error updating comment: ${e.toString()}',
+                                    ),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } finally {
+                              if (mounted) {
+                                setState(() {
+                                  _isSubmitting = false;
+                                });
+                              }
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(
+                              context,
+                            ).colorScheme.primary,
+                          ),
+                          child: const Text('Save Changes'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    // Dispose controller after dialog is closed
+    editController.dispose();
+  }
+
+  void _preCacheEditImageForDialog(
+    Map<int, Uint8List> cache,
+    int index,
+    XFile image,
+    void Function(void Function()) dialogSetState,
+  ) async {
+    try {
+      final bytes = await image.readAsBytes();
+      // Check if the dialog is still mounted (you can't directly check here)
+      // We'll use a try-catch around the setState
+      try {
+        dialogSetState(() {
+          cache[index] = bytes;
+        });
+      } catch (e) {
+        // Dialog might be closed, ignore
+      }
+    } catch (e) {
+      // Ignore cache errors
+    }
+  }
+
+  Widget _buildEditImagePreviewForDialog(
+    Map<int, Uint8List> cache,
+    List<XFile> images,
+    int index,
+    void Function(void Function()) dialogSetState, // Accept dialogSetState
+  ) {
+    if (cache.containsKey(index)) {
+      return Image.memory(
+        cache[index]!,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) {
+          return Container(
+            color: Colors.grey[200],
+            child: const Icon(Icons.broken_image, color: Colors.grey),
+          );
+        },
+      );
+    } else {
+      return FutureBuilder<Uint8List>(
+        future: images[index].readAsBytes(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            );
+          } else if (snapshot.hasError) {
+            return Container(
+              color: Colors.grey[200],
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            );
+          } else if (snapshot.hasData) {
+            final bytes = snapshot.data!;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              // Check if the dialog is still mounted (can't directly check here)
+              // Use the provided dialogSetState
+              dialogSetState(() {
+                cache[index] = bytes;
+              });
+            });
+            return Image.memory(
+              bytes,
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            );
+          } else {
+            return Container(
+              color: Colors.grey[200],
+              child: const Icon(Icons.image, color: Colors.grey),
+            );
+          }
+        },
+      );
     }
   }
 
@@ -2879,24 +3375,27 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     try {
       await _blogService.deleteComment(commentId);
 
-      // Remove the comment from the local list
-      setState(() {
-        _comments.removeWhere((comment) => comment.id == commentId);
-      });
+      if (mounted) {
+        setState(() {
+          _comments.removeWhere((comment) => comment.id == commentId);
+        });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Comment deleted successfully'),
-          backgroundColor: Colors.green,
-        ),
-      );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Comment deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error deleting comment: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting comment: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -3141,7 +3640,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                       const SizedBox(height: 24),
                     ],
 
-                    // Comment section
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -3198,7 +3696,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         ),
                         const SizedBox(height: 8),
 
-                        // Display selected comment images
                         if (_selectedCommentImages.isNotEmpty) ...[
                           const SizedBox(height: 8),
                           Text(
@@ -3373,6 +3870,9 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                 onDelete: isCommentAuthor
                                     ? () => _showDeleteCommentDialog(comment.id)
                                     : null,
+                                onEdit: isCommentAuthor
+                                    ? () => _editComment(comment)
+                                    : null,
                               );
                             },
                           );
@@ -3434,6 +3934,8 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
   @override
   void dispose() {
     _commentController.dispose();
+    _selectedCommentImages.clear();
+    _commentImageCache.clear();
     super.dispose();
   }
 }

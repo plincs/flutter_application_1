@@ -5,6 +5,7 @@ class Comment {
   final String? content;
   final List<String>? imageUrls;
   final DateTime createdAt;
+  final DateTime? updatedAt;
   final String authorName;
   final String? authorPhoto;
   final Map<String, dynamic>? reactions;
@@ -18,6 +19,7 @@ class Comment {
     this.imageUrls,
     required this.createdAt,
     required this.authorName,
+    this.updatedAt,
     this.authorPhoto,
     this.reactions,
     this.userReaction,
@@ -35,6 +37,9 @@ class Comment {
           ? List<String>.from(json['image_urls'] as List<dynamic>)
           : (json['image_url'] != null ? [json['image_url'] as String] : null),
       createdAt: DateTime.parse(json['created_at'] as String),
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
       authorName: users?['display_name'] as String? ?? 'Unknown',
       authorPhoto: users?['profile_photo_url'] as String?,
       reactions: json['reactions'] as Map<String, dynamic>?,

@@ -440,7 +440,11 @@ class BlogService {
 
       final response = await _supabase
           .from('comments')
-          .update({'content': content, 'image_urls': imageUrls})
+          .update({
+            'content': content,
+            'image_urls': imageUrls ?? [],
+            'updated_at': DateTime.now().toIso8601String(),
+          })
           .eq('id', id)
           .eq('user_id', user.id)
           .select('''
@@ -452,6 +456,67 @@ class BlogService {
               profile_photo_url
             )
           ''')
+          .single();
+
+      return Comment.fromJson(response);
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  // ✅ FIXED: Proper editComment method with complete implementation
+  Future<Comment> editComment({
+    required String commentId,
+    String? content,
+    List<String>? imageUrls,
+  }) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
+        throw Exception('User not authenticated');
+      }
+
+      // Check if user owns this comment
+      final commentCheck = await _supabase
+          .from('comments')
+          .select('user_id')
+          .eq('id', commentId)
+          .single();
+
+      if (commentCheck['user_id'] != user.id) {
+        throw Exception('You can only edit your own comments');
+      }
+
+      if ((content == null || content.isEmpty) &&
+          (imageUrls == null || imageUrls.isEmpty)) {
+        throw Exception('Comment must have either text or image');
+      }
+
+      final updates = <String, dynamic>{
+        'updated_at': DateTime.now().toIso8601String(),
+      };
+
+      if (content != null) {
+        updates['content'] = content;
+      }
+
+      if (imageUrls != null) {
+        updates['image_urls'] = imageUrls;
+      }
+
+      final response = await _supabase
+          .from('comments')
+          .update(updates)
+          .eq('id', commentId)
+          .select('''
+          *,
+          users:user_id(
+            id,
+            email,
+            display_name,
+            profile_photo_url
+          )
+        ''')
           .single();
 
       return Comment.fromJson(response);
@@ -598,17 +663,41 @@ class BlogService {
         throw Exception('User not authenticated');
       }
 
-      final response = await _supabase
+      // Check if user already has a reaction
+      final existingReaction = await _supabase
           .from('comment_reactions')
-          .upsert({
-            'comment_id': commentId,
-            'user_id': user.id,
-            'reaction_type_id': reactionTypeId,
-          }, onConflict: 'comment_id,user_id,reaction_type_id')
-          .select()
-          .single();
+          .select('reaction_type_id')
+          .eq('comment_id', commentId)
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      return response;
+      if (existingReaction != null) {
+        final existingTypeId = existingReaction['reaction_type_id'] as String;
+
+        if (existingTypeId == reactionTypeId) {
+          // Remove if same reaction
+          await removeCommentReaction(
+            commentId: commentId,
+            reactionTypeId: reactionTypeId,
+          );
+        } else {
+          // Update to new reaction type
+          await _supabase
+              .from('comment_reactions')
+              .update({'reaction_type_id': reactionTypeId})
+              .eq('comment_id', commentId)
+              .eq('user_id', user.id);
+        }
+      } else {
+        // Insert new reaction
+        await _supabase.from('comment_reactions').insert({
+          'comment_id': commentId,
+          'user_id': user.id,
+          'reaction_type_id': reactionTypeId,
+        });
+      }
+
+      return await getCommentReactions(commentId);
     } catch (e) {
       rethrow;
     }
@@ -645,7 +734,13 @@ class BlogService {
           .eq('comment_id', commentId);
 
       final reactions = response;
-      final total = reactions.length;
+
+      // Group by reaction type
+      final reactionCounts = <String, int>{};
+      for (final reaction in reactions) {
+        final typeId = reaction['reaction_type_id'] as String;
+        reactionCounts[typeId] = (reactionCounts[typeId] ?? 0) + 1;
+      }
 
       String? currentUserReaction;
       if (user != null && reactions.isNotEmpty) {
@@ -657,9 +752,12 @@ class BlogService {
         }
       }
 
-      return {'total': total, 'current_user_reaction': currentUserReaction};
+      return {
+        'counts': reactionCounts,
+        'current_user_reaction': currentUserReaction,
+      };
     } catch (e) {
-      return {'total': 0, 'current_user_reaction': null};
+      return {'counts': {}, 'current_user_reaction': null};
     }
   }
 

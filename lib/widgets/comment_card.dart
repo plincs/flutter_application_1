@@ -35,6 +35,23 @@ class _CommentCardState extends State<CommentCard> {
   @override
   void initState() {
     super.initState();
+    _initReactions();
+  }
+
+  // ADD THIS METHOD - Update when widget changes
+  @override
+  void didUpdateWidget(covariant CommentCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Check if the comment has changed
+    if (oldWidget.comment.id != widget.comment.id ||
+        oldWidget.comment.reactions != widget.comment.reactions ||
+        oldWidget.comment.userReaction != widget.comment.userReaction) {
+      _initReactions();
+    }
+  }
+
+  // ADD THIS METHOD - Initialize reactions
+  void _initReactions() {
     _reactionCounts = widget.comment.reactions ?? {};
     _currentUserReaction = _getUserReactionType(widget.comment.userReaction);
   }
@@ -181,7 +198,6 @@ class _CommentCardState extends State<CommentCard> {
       );
     }
 
-    // For multiple images, show in a grid
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: GridView.builder(
@@ -281,12 +297,26 @@ class _CommentCardState extends State<CommentCard> {
                         _formatDate(widget.comment.createdAt),
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
+                      // ADD THIS - Show "Edited" if comment was updated
+                      if (widget.comment.updatedAt != null &&
+                          widget.comment.updatedAt!.isAfter(
+                            widget.comment.createdAt,
+                          ))
+                        Text(
+                          ' (edited)',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
                     ],
                   ),
                 ),
                 if (widget.showActions &&
                     (widget.onEdit != null || widget.onDelete != null))
                   Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       if (widget.onEdit != null)
                         IconButton(
