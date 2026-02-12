@@ -2876,8 +2876,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
     List<XFile> newSelectedImages = [];
     final Map<int, Uint8List> editImageCache = {};
 
-    final BuildContext dialogContext = context; // Save reference to context
-
+    final BuildContext dialogContext = context;
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -3270,6 +3269,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                             backgroundColor: Theme.of(
                               context,
                             ).colorScheme.primary,
+                            foregroundColor: Colors.white,
                           ),
                           child: const Text('Save Changes'),
                         ),
