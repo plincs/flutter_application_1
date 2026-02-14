@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -1496,6 +1497,23 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
   final List<String> _uploadedImageUrls = [];
   final Map<int, Uint8List> _imageCache = {};
 
+  late final ScrollController _imageScrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    _imageScrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    _imageCache.clear();
+    _imageScrollController.dispose();
+    super.dispose();
+  }
+
   Future<void> _pickImage() async {
     try {
       showModalBottomSheet(
@@ -1521,11 +1539,15 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                 ),
                 onTap: () async {
                   Navigator.pop(context);
-                  final image = await _storageService.pickImageFromGallery();
-                  if (image != null) {
+                  final images = await _storageService
+                      .pickMultipleImagesFromGallery();
+                  if (images != null && images.isNotEmpty) {
                     setState(() {
-                      _selectedImages.add(image);
-                      _preCacheImage(_selectedImages.length - 1, image);
+                      final startIndex = _selectedImages.length;
+                      _selectedImages.addAll(images);
+                      for (int i = 0; i < images.length; i++) {
+                        _preCacheImage(startIndex + i, images[i]);
+                      }
                     });
                   }
                 },
@@ -1557,11 +1579,14 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
         ),
       );
     } catch (e) {
-      final image = await _storageService.pickImageFromGallery();
-      if (image != null) {
+      final images = await _storageService.pickMultipleImagesFromGallery();
+      if (images != null && images.isNotEmpty) {
         setState(() {
-          _selectedImages.add(image);
-          _preCacheImage(_selectedImages.length - 1, image);
+          final startIndex = _selectedImages.length;
+          _selectedImages.addAll(images);
+          for (int i = 0; i < images.length; i++) {
+            _preCacheImage(startIndex + i, images[i]);
+          }
         });
       }
     }
@@ -1575,9 +1600,7 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
           _imageCache[index] = bytes;
         });
       }
-    } catch (e) {
-      // Ignore cache errors
-    }
+    } catch (e) {}
   }
 
   Future<void> _uploadImages() async {
@@ -1880,57 +1903,99 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  SizedBox(
-                    height: 100,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: _selectedImages.length,
-                      itemBuilder: (context, index) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Container(
-                            width: 100,
-                            height: 100,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: Theme.of(context).colorScheme.outline,
+
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      return Container(
+                        width: constraints.maxWidth,
+                        height: 100,
+                        child: Listener(
+                          onPointerSignal: (pointerSignal) {
+                            if (pointerSignal is PointerScrollEvent) {
+                              _imageScrollController.jumpTo(
+                                (_imageScrollController.offset +
+                                        pointerSignal.scrollDelta.dy)
+                                    .clamp(
+                                      0.0,
+                                      _imageScrollController
+                                          .position
+                                          .maxScrollExtent,
+                                    ),
+                              );
+                            }
+                          },
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              scrollbarTheme: ScrollbarThemeData(
+                                trackVisibility: WidgetStateProperty.all(true),
+                                thumbVisibility: WidgetStateProperty.all(true),
                               ),
                             ),
-                            child: Stack(
-                              children: [
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: _buildImagePreview(index),
-                                ),
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: () => _removeImage(index),
+                            child: Scrollbar(
+                              thumbVisibility: true,
+                              controller: _imageScrollController,
+                              child: ListView.builder(
+                                controller: _imageScrollController,
+                                scrollDirection: Axis.horizontal,
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                primary: false,
+                                shrinkWrap: true,
+                                itemCount: _selectedImages.length,
+                                itemBuilder: (context, index) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(right: 8),
                                     child: Container(
+                                      width: 100,
+                                      height: 100,
                                       decoration: BoxDecoration(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.errorContainer,
-                                        shape: BoxShape.circle,
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.outline,
+                                        ),
                                       ),
-                                      child: Icon(
-                                        Icons.close,
-                                        size: 20,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onErrorContainer,
+                                      child: Stack(
+                                        children: [
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                            child: _buildImagePreview(index),
+                                          ),
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: GestureDetector(
+                                              onTap: () => _removeImage(index),
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.errorContainer,
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Icon(
+                                                  Icons.close,
+                                                  size: 20,
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .onErrorContainer,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                ),
-                              ],
+                                  );
+                                },
+                              ),
                             ),
                           ),
-                        );
-                      },
-                    ),
+                        ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -1985,14 +2050,6 @@ class _CreateBlogModalState extends State<CreateBlogModal> {
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _contentController.dispose();
-    _imageCache.clear();
-    super.dispose();
-  }
 }
 
 class EditBlogModal extends StatefulWidget {
@@ -2022,12 +2079,27 @@ class _EditBlogModalState extends State<EditBlogModal> {
   List<String> _existingImageUrls = [];
   final Map<int, Uint8List> _imageCache = {};
 
+  late final ScrollController _existingImagesScrollController;
+  late final ScrollController _newImagesScrollController;
+
   @override
   void initState() {
     super.initState();
     _titleController.text = widget.blog.title;
     _contentController.text = widget.blog.content;
     _existingImageUrls = widget.blog.imageUrls ?? [];
+    _existingImagesScrollController = ScrollController();
+    _newImagesScrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    _imageCache.clear();
+    _existingImagesScrollController.dispose();
+    _newImagesScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _pickImage() async {
@@ -2055,11 +2127,15 @@ class _EditBlogModalState extends State<EditBlogModal> {
                 ),
                 onTap: () async {
                   Navigator.pop(context);
-                  final image = await _storageService.pickImageFromGallery();
-                  if (image != null) {
+                  final images = await _storageService
+                      .pickMultipleImagesFromGallery();
+                  if (images != null && images.isNotEmpty) {
                     setState(() {
-                      _selectedImages.add(image);
-                      _preCacheImage(_selectedImages.length - 1, image);
+                      final startIndex = _selectedImages.length;
+                      _selectedImages.addAll(images);
+                      for (int i = 0; i < images.length; i++) {
+                        _preCacheImage(startIndex + i, images[i]);
+                      }
                     });
                   }
                 },
@@ -2091,11 +2167,14 @@ class _EditBlogModalState extends State<EditBlogModal> {
         ),
       );
     } catch (e) {
-      final image = await _storageService.pickImageFromGallery();
-      if (image != null) {
+      final images = await _storageService.pickMultipleImagesFromGallery();
+      if (images != null && images.isNotEmpty) {
         setState(() {
-          _selectedImages.add(image);
-          _preCacheImage(_selectedImages.length - 1, image);
+          final startIndex = _selectedImages.length;
+          _selectedImages.addAll(images);
+          for (int i = 0; i < images.length; i++) {
+            _preCacheImage(startIndex + i, images[i]);
+          }
         });
       }
     }
@@ -2371,61 +2450,107 @@ class _EditBlogModalState extends State<EditBlogModal> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _existingImageUrls.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Stack(
-                              children: [
-                                Container(
-                                  width: 100,
-                                  height: 100,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.outline,
-                                    ),
-                                    image: DecorationImage(
-                                      image: NetworkImage(
-                                        _existingImageUrls[index],
+
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Container(
+                          width: constraints.maxWidth,
+                          height: 100,
+                          child: Listener(
+                            onPointerSignal: (pointerSignal) {
+                              if (pointerSignal is PointerScrollEvent) {
+                                _existingImagesScrollController.jumpTo(
+                                  (_existingImagesScrollController.offset +
+                                          pointerSignal.scrollDelta.dy)
+                                      .clamp(
+                                        0.0,
+                                        _existingImagesScrollController
+                                            .position
+                                            .maxScrollExtent,
                                       ),
-                                      fit: BoxFit.cover,
-                                    ),
+                                );
+                              }
+                            },
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                scrollbarTheme: ScrollbarThemeData(
+                                  trackVisibility: WidgetStateProperty.all(
+                                    true,
+                                  ),
+                                  thumbVisibility: WidgetStateProperty.all(
+                                    true,
                                   ),
                                 ),
-                                Positioned(
-                                  top: 4,
-                                  right: 4,
-                                  child: GestureDetector(
-                                    onTap: () => _removeExistingImage(index),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.surface.withOpacity(0.8),
-                                        shape: BoxShape.circle,
+                              ),
+                              child: Scrollbar(
+                                thumbVisibility: true,
+                                controller: _existingImagesScrollController,
+                                child: ListView.builder(
+                                  controller: _existingImagesScrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  primary: false,
+                                  shrinkWrap: true,
+                                  itemCount: _existingImageUrls.length,
+                                  itemBuilder: (context, index) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 8),
+                                      child: Stack(
+                                        children: [
+                                          Container(
+                                            width: 100,
+                                            height: 100,
+                                            decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.outline,
+                                              ),
+                                              image: DecorationImage(
+                                                image: NetworkImage(
+                                                  _existingImageUrls[index],
+                                                ),
+                                                fit: BoxFit.cover,
+                                              ),
+                                            ),
+                                          ),
+                                          Positioned(
+                                            top: 4,
+                                            right: 4,
+                                            child: GestureDetector(
+                                              onTap: () =>
+                                                  _removeExistingImage(index),
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .surface
+                                                      .withOpacity(0.8),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: Icon(
+                                                  Icons.close,
+                                                  size: 20,
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurface,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                      child: Icon(
-                                        Icons.close,
-                                        size: 20,
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurface,
-                                      ),
-                                    ),
-                                  ),
+                                    );
+                                  },
                                 ),
-                              ],
+                              ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -2469,58 +2594,109 @@ class _EditBlogModalState extends State<EditBlogModal> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    SizedBox(
-                      height: 100,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _selectedImages.length,
-                        itemBuilder: (context, index) {
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Container(
-                              width: 100,
-                              height: 100,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(
-                                  color: Theme.of(context).colorScheme.outline,
+
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        return Container(
+                          width: constraints.maxWidth,
+                          height: 100,
+                          child: Listener(
+                            onPointerSignal: (pointerSignal) {
+                              if (pointerSignal is PointerScrollEvent) {
+                                _newImagesScrollController.jumpTo(
+                                  (_newImagesScrollController.offset +
+                                          pointerSignal.scrollDelta.dy)
+                                      .clamp(
+                                        0.0,
+                                        _newImagesScrollController
+                                            .position
+                                            .maxScrollExtent,
+                                      ),
+                                );
+                              }
+                            },
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                scrollbarTheme: ScrollbarThemeData(
+                                  trackVisibility: WidgetStateProperty.all(
+                                    true,
+                                  ),
+                                  thumbVisibility: WidgetStateProperty.all(
+                                    true,
+                                  ),
                                 ),
                               ),
-                              child: Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: _buildNewImagePreview(index),
-                                  ),
-                                  Positioned(
-                                    top: 4,
-                                    right: 4,
-                                    child: GestureDetector(
-                                      onTap: () => _removeNewImage(index),
+                              child: Scrollbar(
+                                thumbVisibility: true,
+                                controller: _newImagesScrollController,
+                                child: ListView.builder(
+                                  controller: _newImagesScrollController,
+                                  scrollDirection: Axis.horizontal,
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  primary: false,
+                                  shrinkWrap: true,
+                                  itemCount: _selectedImages.length,
+                                  itemBuilder: (context, index) {
+                                    return Padding(
+                                      padding: const EdgeInsets.only(right: 8),
                                       child: Container(
+                                        width: 100,
+                                        height: 100,
                                         decoration: BoxDecoration(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .surface
-                                              .withOpacity(0.8),
-                                          shape: BoxShape.circle,
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                          border: Border.all(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.outline,
+                                          ),
                                         ),
-                                        child: Icon(
-                                          Icons.close,
-                                          size: 20,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurface,
+                                        child: Stack(
+                                          children: [
+                                            ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              child: _buildNewImagePreview(
+                                                index,
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 4,
+                                              right: 4,
+                                              child: GestureDetector(
+                                                onTap: () =>
+                                                    _removeNewImage(index),
+                                                child: Container(
+                                                  decoration: BoxDecoration(
+                                                    color: Theme.of(context)
+                                                        .colorScheme
+                                                        .surface
+                                                        .withOpacity(0.8),
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.close,
+                                                    size: 20,
+                                                    color: Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSurface,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                    ),
-                                  ),
-                                ],
+                                    );
+                                  },
+                                ),
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
                     const SizedBox(height: 16),
                   ],
@@ -2576,14 +2752,6 @@ class _EditBlogModalState extends State<EditBlogModal> {
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _contentController.dispose();
-    _imageCache.clear();
-    super.dispose();
-  }
 }
 
 class BlogDetailModal extends StatefulWidget {
@@ -2611,10 +2779,22 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
   List<Comment> _comments = [];
   final Map<int, Uint8List> _commentImageCache = {};
 
+  late final ScrollController _commentImagesScrollController;
+
   @override
   void initState() {
     super.initState();
     _loadComments();
+    _commentImagesScrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _commentController.dispose();
+    _selectedCommentImages.clear();
+    _commentImageCache.clear();
+    _commentImagesScrollController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadComments() async {
@@ -2715,9 +2895,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
           _commentImageCache[index] = bytes;
         });
       }
-    } catch (e) {
-      // Ignore caching errors for comments
-    }
+    } catch (e) {}
   }
 
   void _removeCommentImage(int index) {
@@ -2763,10 +2941,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
             return _buildErrorImage();
           } else if (snapshot.hasData) {
             final bytes = snapshot.data!;
-            // FIX: Don't use addPostFrameCallback here - it's causing the issue
-            // Instead, cache the image without setState first, then use a microtask
             if (!_commentImageCache.containsKey(index)) {
-              // Use scheduleMicrotask instead of addPostFrameCallback
               scheduleMicrotask(() {
                 if (mounted && index < _selectedCommentImages.length) {
                   setState(() {
@@ -2883,6 +3058,10 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (context, dialogSetState) {
+            final ScrollController existingImagesController =
+                ScrollController();
+            final ScrollController newImagesController = ScrollController();
+
             return Dialog(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -2934,59 +3113,107 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      SizedBox(
-                        height: 70,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: currentImageUrls.length,
-                          itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Colors.grey.shade300,
-                                      ),
-                                      image: DecorationImage(
-                                        image: NetworkImage(
-                                          currentImageUrls[index],
+
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Container(
+                            width: constraints.maxWidth,
+                            height: 70,
+                            child: Listener(
+                              onPointerSignal: (pointerSignal) {
+                                if (pointerSignal is PointerScrollEvent) {
+                                  existingImagesController.jumpTo(
+                                    (existingImagesController.offset +
+                                            pointerSignal.scrollDelta.dy)
+                                        .clamp(
+                                          0.0,
+                                          existingImagesController
+                                              .position
+                                              .maxScrollExtent,
                                         ),
-                                        fit: BoxFit.cover,
-                                      ),
+                                  );
+                                }
+                              },
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  scrollbarTheme: ScrollbarThemeData(
+                                    trackVisibility: WidgetStateProperty.all(
+                                      true,
+                                    ),
+                                    thumbVisibility: WidgetStateProperty.all(
+                                      true,
                                     ),
                                   ),
-                                  Positioned(
-                                    top: 2,
-                                    right: 2,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        dialogSetState(() {
-                                          currentImageUrls.removeAt(index);
-                                        });
-                                      },
-                                      child: Container(
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
+                                ),
+                                child: Scrollbar(
+                                  thumbVisibility: true,
+                                  controller: existingImagesController,
+                                  child: ListView.builder(
+                                    controller: existingImagesController,
+                                    scrollDirection: Axis.horizontal,
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    itemCount: currentImageUrls.length,
+                                    itemBuilder: (context, index) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 8,
                                         ),
-                                        child: const Icon(
-                                          Icons.close,
-                                          size: 16,
-                                          color: Colors.white,
+                                        child: Stack(
+                                          children: [
+                                            Container(
+                                              width: 60,
+                                              height: 60,
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: Colors.grey.shade300,
+                                                ),
+                                                image: DecorationImage(
+                                                  image: NetworkImage(
+                                                    currentImageUrls[index],
+                                                  ),
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ),
+                                            Positioned(
+                                              top: 2,
+                                              right: 2,
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  dialogSetState(() {
+                                                    currentImageUrls.removeAt(
+                                                      index,
+                                                    );
+                                                  });
+                                                },
+                                                child: Container(
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Colors.red,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    size: 16,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ),
+                                      );
+                                    },
                                   ),
-                                ],
+                                ),
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -3003,7 +3230,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                   dialogSetState(() {
                                     newSelectedImages.addAll(images);
                                   });
-                                  // Cache images after adding
                                   for (int i = 0; i < images.length; i++) {
                                     try {
                                       final bytes = await images[i]
@@ -3017,15 +3243,11 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                               bytes;
                                         });
                                       }
-                                    } catch (e) {
-                                      // Ignore cache errors
-                                    }
+                                    } catch (e) {}
                                   }
                                 }
                               }
-                            } catch (e) {
-                              // Handle error silently
-                            }
+                            } catch (e) {}
                           },
                           icon: const Icon(Icons.add_photo_alternate),
                           label: const Text('Add Images'),
@@ -3043,144 +3265,220 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         ),
                       ),
                       const SizedBox(height: 8),
-                      SizedBox(
-                        height: 70,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: newSelectedImages.length,
-                          itemBuilder: (context, index) {
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: Stack(
-                                children: [
-                                  Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Colors.grey.shade300,
-                                      ),
+
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Container(
+                            width: constraints.maxWidth,
+                            height: 70,
+                            child: Listener(
+                              onPointerSignal: (pointerSignal) {
+                                if (pointerSignal is PointerScrollEvent) {
+                                  newImagesController.jumpTo(
+                                    (newImagesController.offset +
+                                            pointerSignal.scrollDelta.dy)
+                                        .clamp(
+                                          0.0,
+                                          newImagesController
+                                              .position
+                                              .maxScrollExtent,
+                                        ),
+                                  );
+                                }
+                              },
+                              child: Theme(
+                                data: Theme.of(context).copyWith(
+                                  scrollbarTheme: ScrollbarThemeData(
+                                    trackVisibility: WidgetStateProperty.all(
+                                      true,
                                     ),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(6),
-                                      child: editImageCache.containsKey(index)
-                                          ? Image.memory(
-                                              editImageCache[index]!,
+                                    thumbVisibility: WidgetStateProperty.all(
+                                      true,
+                                    ),
+                                  ),
+                                ),
+                                child: Scrollbar(
+                                  thumbVisibility: true,
+                                  controller: newImagesController,
+                                  child: ListView.builder(
+                                    controller: newImagesController,
+                                    scrollDirection: Axis.horizontal,
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    shrinkWrap: true,
+                                    itemCount: newSelectedImages.length,
+                                    itemBuilder: (context, index) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(
+                                          right: 8,
+                                        ),
+                                        child: Stack(
+                                          children: [
+                                            Container(
                                               width: 60,
                                               height: 60,
-                                              fit: BoxFit.cover,
-                                              errorBuilder:
-                                                  (context, error, stackTrace) {
-                                                    return Container(
-                                                      color: Colors.grey[200],
-                                                      child: const Icon(
-                                                        Icons.broken_image,
-                                                        color: Colors.grey,
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: Colors.grey.shade300,
+                                                ),
+                                              ),
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                child:
+                                                    editImageCache.containsKey(
+                                                      index,
+                                                    )
+                                                    ? Image.memory(
+                                                        editImageCache[index]!,
+                                                        width: 60,
+                                                        height: 60,
+                                                        fit: BoxFit.cover,
+                                                        errorBuilder:
+                                                            (
+                                                              context,
+                                                              error,
+                                                              stackTrace,
+                                                            ) {
+                                                              return Container(
+                                                                color: Colors
+                                                                    .grey[200],
+                                                                child: const Icon(
+                                                                  Icons
+                                                                      .broken_image,
+                                                                  color: Colors
+                                                                      .grey,
+                                                                ),
+                                                              );
+                                                            },
+                                                      )
+                                                    : FutureBuilder<Uint8List>(
+                                                        future:
+                                                            newSelectedImages[index]
+                                                                .readAsBytes(),
+                                                        builder: (context, snapshot) {
+                                                          if (snapshot
+                                                                  .connectionState ==
+                                                              ConnectionState
+                                                                  .waiting) {
+                                                            return Center(
+                                                              child: CircularProgressIndicator(
+                                                                strokeWidth: 2,
+                                                                color: Theme.of(
+                                                                  context,
+                                                                ).colorScheme.primary,
+                                                              ),
+                                                            );
+                                                          } else if (snapshot
+                                                              .hasError) {
+                                                            return Container(
+                                                              color: Colors
+                                                                  .grey[200],
+                                                              child: const Icon(
+                                                                Icons
+                                                                    .broken_image,
+                                                                color:
+                                                                    Colors.grey,
+                                                              ),
+                                                            );
+                                                          } else if (snapshot
+                                                              .hasData) {
+                                                            final bytes =
+                                                                snapshot.data!;
+                                                            WidgetsBinding
+                                                                .instance
+                                                                .addPostFrameCallback((
+                                                                  _,
+                                                                ) {
+                                                                  if (context
+                                                                      .mounted) {
+                                                                    dialogSetState(() {
+                                                                      editImageCache[index] =
+                                                                          bytes;
+                                                                    });
+                                                                  }
+                                                                });
+                                                            return Image.memory(
+                                                              bytes,
+                                                              width: 60,
+                                                              height: 60,
+                                                              fit: BoxFit.cover,
+                                                            );
+                                                          } else {
+                                                            return Container(
+                                                              color: Colors
+                                                                  .grey[200],
+                                                              child: const Icon(
+                                                                Icons.image,
+                                                                color:
+                                                                    Colors.grey,
+                                                              ),
+                                                            );
+                                                          }
+                                                        },
                                                       ),
-                                                    );
-                                                  },
-                                            )
-                                          : FutureBuilder<Uint8List>(
-                                              future: newSelectedImages[index]
-                                                  .readAsBytes(),
-                                              builder: (context, snapshot) {
-                                                if (snapshot.connectionState ==
-                                                    ConnectionState.waiting) {
-                                                  return Center(
-                                                    child:
-                                                        CircularProgressIndicator(
-                                                          strokeWidth: 2,
-                                                          color: Theme.of(
-                                                            context,
-                                                          ).colorScheme.primary,
-                                                        ),
-                                                  );
-                                                } else if (snapshot.hasError) {
-                                                  return Container(
-                                                    color: Colors.grey[200],
-                                                    child: const Icon(
-                                                      Icons.broken_image,
-                                                      color: Colors.grey,
-                                                    ),
-                                                  );
-                                                } else if (snapshot.hasData) {
-                                                  final bytes = snapshot.data!;
-                                                  WidgetsBinding.instance
-                                                      .addPostFrameCallback((
-                                                        _,
-                                                      ) {
-                                                        if (context.mounted) {
-                                                          dialogSetState(() {
-                                                            editImageCache[index] =
-                                                                bytes;
-                                                          });
-                                                        }
-                                                      });
-                                                  return Image.memory(
-                                                    bytes,
-                                                    width: 60,
-                                                    height: 60,
-                                                    fit: BoxFit.cover,
-                                                  );
-                                                } else {
-                                                  return Container(
-                                                    color: Colors.grey[200],
-                                                    child: const Icon(
-                                                      Icons.image,
-                                                      color: Colors.grey,
-                                                    ),
-                                                  );
-                                                }
-                                              },
+                                              ),
                                             ),
-                                    ),
-                                  ),
-                                  Positioned(
-                                    top: 2,
-                                    right: 2,
-                                    child: GestureDetector(
-                                      onTap: () {
-                                        dialogSetState(() {
-                                          newSelectedImages.removeAt(index);
-                                          editImageCache.remove(index);
-                                          // Reindex remaining images
-                                          final updatedCache =
-                                              <int, Uint8List>{};
-                                          for (
-                                            int i = 0;
-                                            i < newSelectedImages.length;
-                                            i++
-                                          ) {
-                                            if (editImageCache.containsKey(
-                                              i + 1,
-                                            )) {
-                                              updatedCache[i] =
-                                                  editImageCache[i + 1]!;
-                                            }
-                                          }
-                                          editImageCache.clear();
-                                          editImageCache.addAll(updatedCache);
-                                        });
-                                      },
-                                      child: Container(
-                                        decoration: const BoxDecoration(
-                                          color: Colors.red,
-                                          shape: BoxShape.circle,
+                                            Positioned(
+                                              top: 2,
+                                              right: 2,
+                                              child: GestureDetector(
+                                                onTap: () {
+                                                  dialogSetState(() {
+                                                    newSelectedImages.removeAt(
+                                                      index,
+                                                    );
+                                                    editImageCache.remove(
+                                                      index,
+                                                    );
+                                                    final updatedCache =
+                                                        <int, Uint8List>{};
+                                                    for (
+                                                      int i = 0;
+                                                      i <
+                                                          newSelectedImages
+                                                              .length;
+                                                      i++
+                                                    ) {
+                                                      if (editImageCache
+                                                          .containsKey(i + 1)) {
+                                                        updatedCache[i] =
+                                                            editImageCache[i +
+                                                                1]!;
+                                                      }
+                                                    }
+                                                    editImageCache.clear();
+                                                    editImageCache.addAll(
+                                                      updatedCache,
+                                                    );
+                                                  });
+                                                },
+                                                child: Container(
+                                                  decoration:
+                                                      const BoxDecoration(
+                                                        color: Colors.red,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                  child: const Icon(
+                                                    Icons.close,
+                                                    size: 16,
+                                                    color: Colors.white,
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                        child: const Icon(
-                                          Icons.close,
-                                          size: 16,
-                                          color: Colors.white,
-                                        ),
-                                      ),
-                                    ),
+                                      );
+                                    },
                                   ),
-                                ],
+                                ),
                               ),
-                            );
-                          },
-                        ),
+                            ),
+                          );
+                        },
                       ),
                     ],
 
@@ -3196,19 +3494,11 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                         const SizedBox(width: 8),
                         ElevatedButton(
                           onPressed: () async {
-                            // Close dialog first
                             Navigator.pop(context);
-
-                            // Use a mounted check before any state operations
                             if (!mounted) return;
-
-                            setState(() {
-                              _isSubmitting = true;
-                            });
-
+                            setState(() => _isSubmitting = true);
                             try {
                               List<String> uploadedImageUrls = [];
-
                               if (newSelectedImages.isNotEmpty) {
                                 uploadedImageUrls = await _storageService
                                     .uploadMultipleImages(
@@ -3217,14 +3507,11 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                       customFileNamePrefix: 'comment',
                                     );
                               }
-
                               final allImageUrls = [
                                 ...currentImageUrls,
                                 ...uploadedImageUrls,
                               ];
-
                               final content = editController.text.trim();
-
                               await _blogService.editComment(
                                 commentId: comment.id,
                                 content: content.isNotEmpty ? content : null,
@@ -3232,9 +3519,7 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                     ? allImageUrls
                                     : null,
                               );
-
                               await _loadComments();
-
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -3246,7 +3531,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                 );
                               }
                             } catch (e) {
-                              print('Error updating comment: $e');
                               if (mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
@@ -3258,11 +3542,8 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
                                 );
                               }
                             } finally {
-                              if (mounted) {
-                                setState(() {
-                                  _isSubmitting = false;
-                                });
-                              }
+                              if (mounted)
+                                setState(() => _isSubmitting = false);
                             }
                           },
                           style: ElevatedButton.styleFrom(
@@ -3284,98 +3565,16 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
       },
     );
 
-    // Dispose controller after dialog is closed
     editController.dispose();
-  }
-
-  void _preCacheEditImageForDialog(
-    Map<int, Uint8List> cache,
-    int index,
-    XFile image,
-    void Function(void Function()) dialogSetState,
-  ) async {
-    try {
-      final bytes = await image.readAsBytes();
-      try {
-        dialogSetState(() {
-          cache[index] = bytes;
-        });
-      } catch (e) {
-        // Dialog might be closed, ignore
-      }
-    } catch (e) {
-      // Ignore cache errors
-    }
-  }
-
-  Widget _buildEditImagePreviewForDialog(
-    Map<int, Uint8List> cache,
-    List<XFile> images,
-    int index,
-    void Function(void Function()) dialogSetState,
-  ) {
-    if (cache.containsKey(index)) {
-      return Image.memory(
-        cache[index]!,
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          return Container(
-            color: Colors.grey[200],
-            child: const Icon(Icons.broken_image, color: Colors.grey),
-          );
-        },
-      );
-    } else {
-      return FutureBuilder<Uint8List>(
-        future: images[index].readAsBytes(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Theme.of(context).colorScheme.primary,
-              ),
-            );
-          } else if (snapshot.hasError) {
-            return Container(
-              color: Colors.grey[200],
-              child: const Icon(Icons.broken_image, color: Colors.grey),
-            );
-          } else if (snapshot.hasData) {
-            final bytes = snapshot.data!;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              dialogSetState(() {
-                cache[index] = bytes;
-              });
-            });
-            return Image.memory(
-              bytes,
-              width: 60,
-              height: 60,
-              fit: BoxFit.cover,
-            );
-          } else {
-            return Container(
-              color: Colors.grey[200],
-              child: const Icon(Icons.image, color: Colors.grey),
-            );
-          }
-        },
-      );
-    }
   }
 
   Future<void> _deleteComment(String commentId) async {
     try {
       await _blogService.deleteComment(commentId);
-
       if (mounted) {
         setState(() {
           _comments.removeWhere((comment) => comment.id == commentId);
         });
-
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Comment deleted successfully'),
@@ -3420,6 +3619,9 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
 
   @override
   Widget build(BuildContext context) {
+    final double availableWidth =
+        (MediaQuery.of(context).size.width * 0.9) - 32;
+
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
@@ -3469,412 +3671,475 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.blog.title,
-                      style: const TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundColor: Colors.blue[100],
-                          child:
-                              widget.blog.authorPhoto != null &&
-                                  widget.blog.authorPhoto!.isNotEmpty
-                              ? ClipOval(
-                                  child: Image.network(
-                                    widget.blog.authorPhoto!,
-                                    width: 32,
-                                    height: 32,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Text(
-                                        widget.blog.authorName.isNotEmpty
-                                            ? widget.blog.authorName
-                                                  .substring(0, 1)
-                                                  .toUpperCase()
-                                            : 'A',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                )
-                              : Text(
-                                  widget.blog.authorName.isNotEmpty
-                                      ? widget.blog.authorName
-                                            .substring(0, 1)
-                                            .toUpperCase()
-                                      : 'A',
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          widget.blog.authorName,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        const Spacer(),
-                        Text(
-                          DateFormat(
-                            'MMM d, yyyy',
-                          ).format(widget.blog.createdAt),
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    Text(
-                      widget.blog.content,
-                      style: const TextStyle(fontSize: 16, height: 1.6),
-                    ),
-                    const SizedBox(height: 24),
-
-                    if (widget.blog.imageUrls.isNotEmpty) ...[
-                      const Text(
-                        'Images:',
-                        style: TextStyle(
-                          fontSize: 18,
+                child: Container(
+                  width: double.infinity,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.blog.title,
+                        style: const TextStyle(
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
 
-                      if (widget.blog.imageUrls.length == 1) ...[
-                        Center(
-                          child: Container(
-                            constraints: const BoxConstraints(
-                              maxWidth: 400,
-                              maxHeight: 300,
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(12),
-                              child: Image.network(
-                                widget.blog.imageUrls[0],
-                                fit: BoxFit.contain,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    width: 300,
-                                    height: 200,
-                                    color: Colors.grey[200],
-                                    child: const Center(
-                                      child: Icon(Icons.broken_image),
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Colors.blue[100],
+                            child:
+                                widget.blog.authorPhoto != null &&
+                                    widget.blog.authorPhoto!.isNotEmpty
+                                ? ClipOval(
+                                    child: Image.network(
+                                      widget.blog.authorPhoto!,
+                                      width: 32,
+                                      height: 32,
+                                      fit: BoxFit.cover,
+                                      errorBuilder:
+                                          (context, error, stackTrace) {
+                                            return Text(
+                                              widget.blog.authorName.isNotEmpty
+                                                  ? widget.blog.authorName
+                                                        .substring(0, 1)
+                                                        .toUpperCase()
+                                                  : 'A',
+                                              style: const TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            );
+                                          },
                                     ),
-                                  );
-                                },
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Container(
-                                        width: 300,
-                                        height: 200,
-                                        color: Colors.grey[200],
-                                        child: Center(
-                                          child: CircularProgressIndicator(
-                                            value:
-                                                loadingProgress
-                                                        .expectedTotalBytes !=
-                                                    null
-                                                ? loadingProgress
-                                                          .cumulativeBytesLoaded /
-                                                      loadingProgress
-                                                          .expectedTotalBytes!
-                                                : null,
+                                  )
+                                : Text(
+                                    widget.blog.authorName.isNotEmpty
+                                        ? widget.blog.authorName
+                                              .substring(0, 1)
+                                              .toUpperCase()
+                                        : 'A',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            widget.blog.authorName,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          const Spacer(),
+                          Text(
+                            DateFormat(
+                              'MMM d, yyyy',
+                            ).format(widget.blog.createdAt),
+                            style: TextStyle(color: Colors.grey[600]),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      Text(
+                        widget.blog.content,
+                        style: const TextStyle(fontSize: 16, height: 1.6),
+                      ),
+                      const SizedBox(height: 24),
+
+                      if (widget.blog.imageUrls.isNotEmpty) ...[
+                        const Text(
+                          'Images:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        if (widget.blog.imageUrls.length == 1) ...[
+                          Center(
+                            child: Container(
+                              constraints: const BoxConstraints(
+                                maxWidth: 400,
+                                maxHeight: 300,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12),
+                                child: Image.network(
+                                  widget.blog.imageUrls[0],
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 300,
+                                      height: 200,
+                                      color: Colors.grey[200],
+                                      child: const Center(
+                                        child: Icon(Icons.broken_image),
+                                      ),
+                                    );
+                                  },
+                                  loadingBuilder:
+                                      (context, child, loadingProgress) {
+                                        if (loadingProgress == null)
+                                          return child;
+                                        return Container(
+                                          width: 300,
+                                          height: 200,
+                                          color: Colors.grey[200],
+                                          child: Center(
+                                            child: CircularProgressIndicator(
+                                              value:
+                                                  loadingProgress
+                                                          .expectedTotalBytes !=
+                                                      null
+                                                  ? loadingProgress
+                                                            .cumulativeBytesLoaded /
+                                                        loadingProgress
+                                                            .expectedTotalBytes!
+                                                  : null,
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    },
+                                        );
+                                      },
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ] else ...[
-                        GridView.builder(
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 8,
-                                mainAxisSpacing: 8,
-                                childAspectRatio: 1,
-                              ),
-                          itemCount: widget.blog.imageUrls.length,
-                          itemBuilder: (context, index) {
-                            return ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                widget.blog.imageUrls[index],
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Container(
-                                    color: Colors.grey[200],
-                                    child: const Center(
-                                      child: Icon(Icons.broken_image),
-                                    ),
-                                  );
-                                },
-                              ),
-                            );
-                          },
-                        ),
+                        ] else ...[
+                          GridView.builder(
+                            physics: const NeverScrollableScrollPhysics(),
+                            shrinkWrap: true,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 8,
+                                  childAspectRatio: 1,
+                                ),
+                            itemCount: widget.blog.imageUrls.length,
+                            itemBuilder: (context, index) {
+                              return ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: Image.network(
+                                  widget.blog.imageUrls[index],
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      color: Colors.grey[200],
+                                      child: const Center(
+                                        child: Icon(Icons.broken_image),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                        const SizedBox(height: 24),
                       ],
-                      const SizedBox(height: 24),
-                    ],
 
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
                               color: Theme.of(
                                 context,
-                              ).colorScheme.outline.withOpacity(0.3),
+                              ).colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.outline.withOpacity(0.3),
+                              ),
                             ),
-                          ),
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: _commentController,
-                                  decoration: InputDecoration(
-                                    hintText: 'Add a comment...',
-                                    hintStyle: TextStyle(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurfaceVariant
-                                          .withOpacity(0.6),
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _commentController,
+                                    decoration: InputDecoration(
+                                      hintText: 'Add a comment...',
+                                      hintStyle: TextStyle(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurfaceVariant
+                                            .withOpacity(0.6),
+                                      ),
+                                      border: InputBorder.none,
                                     ),
-                                    border: InputBorder.none,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
+                                    ),
+                                    maxLines: 3,
+                                    minLines: 1,
                                   ),
-                                  style: TextStyle(
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.image,
                                     color: Theme.of(
                                       context,
-                                    ).colorScheme.onSurfaceVariant,
+                                    ).colorScheme.primary,
+                                    size: 20,
                                   ),
-                                  maxLines: 3,
-                                  minLines: 1,
+                                  onPressed: _pickCommentImages,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+
+                          if (_selectedCommentImages.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              '${_selectedCommentImages.length} image(s) selected',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withOpacity(0.6),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            Container(
+                              width: availableWidth,
+                              height: 70,
+                              clipBehavior: Clip.hardEdge,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Listener(
+                                onPointerSignal: (pointerSignal) {
+                                  if (pointerSignal is PointerScrollEvent) {
+                                    _commentImagesScrollController.jumpTo(
+                                      (_commentImagesScrollController.offset +
+                                              pointerSignal.scrollDelta.dy)
+                                          .clamp(
+                                            0.0,
+                                            _commentImagesScrollController
+                                                .position
+                                                .maxScrollExtent,
+                                          ),
+                                    );
+                                  }
+                                },
+                                child: Theme(
+                                  data: Theme.of(context).copyWith(
+                                    scrollbarTheme: ScrollbarThemeData(
+                                      trackVisibility: WidgetStateProperty.all(
+                                        true,
+                                      ),
+                                      thumbVisibility: WidgetStateProperty.all(
+                                        true,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Scrollbar(
+                                    thumbVisibility: true,
+                                    controller: _commentImagesScrollController,
+                                    child: SingleChildScrollView(
+                                      controller:
+                                          _commentImagesScrollController,
+                                      scrollDirection: Axis.horizontal,
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      primary: false,
+                                      child: Row(
+                                        children: List.generate(
+                                          _selectedCommentImages.length,
+                                          (index) {
+                                            return Container(
+                                              width: 60,
+                                              height: 60,
+                                              margin: const EdgeInsets.only(
+                                                right: 8,
+                                              ),
+                                              decoration: BoxDecoration(
+                                                borderRadius:
+                                                    BorderRadius.circular(6),
+                                                border: Border.all(
+                                                  color: Theme.of(context)
+                                                      .colorScheme
+                                                      .outline
+                                                      .withOpacity(0.3),
+                                                  width: 1,
+                                                ),
+                                              ),
+                                              child: Stack(
+                                                children: [
+                                                  ClipRRect(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
+                                                    child:
+                                                        _buildCommentImagePreview(
+                                                          index,
+                                                        ),
+                                                  ),
+                                                  Positioned(
+                                                    top: 2,
+                                                    right: 2,
+                                                    child: GestureDetector(
+                                                      onTap: () =>
+                                                          _removeCommentImage(
+                                                            index,
+                                                          ),
+                                                      child: Container(
+                                                        decoration: BoxDecoration(
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .errorContainer,
+                                                          shape:
+                                                              BoxShape.circle,
+                                                        ),
+                                                        child: Icon(
+                                                          Icons.close,
+                                                          size: 16,
+                                                          color: Theme.of(context)
+                                                              .colorScheme
+                                                              .onErrorContainer,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.image,
-                                  color: Theme.of(context).colorScheme.primary,
-                                  size: 20,
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedCommentImages.clear();
+                                    _commentImageCache.clear();
+                                  });
+                                },
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  minimumSize: const Size(0, 24),
                                 ),
-                                onPressed: _pickCommentImages,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
+                                child: Text(
+                                  'Remove All',
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                          ],
+
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: ElevatedButton(
+                              onPressed: _isSubmitting ? null : _submitComment,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.primary,
+                                foregroundColor: Theme.of(
+                                  context,
+                                ).colorScheme.onPrimary,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 20,
+                                  vertical: 8,
+                                ),
+                                minimumSize: const Size(0, 36),
+                              ),
+                              child: _isSubmitting
+                                  ? const SizedBox(
+                                      height: 16,
+                                      width: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : const Text('Post Comment'),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+
+                      if (_comments.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(32),
+                          child: Column(
+                            children: [
+                              Icon(
+                                Icons.comment_outlined,
+                                size: 48,
+                                color: Colors.grey,
+                              ),
+                              SizedBox(height: 16),
+                              Text(
+                                'No comments yet',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                              Text(
+                                'Be the first to comment!',
+                                style: TextStyle(color: Colors.grey),
                               ),
                             ],
                           ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        if (_selectedCommentImages.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            '${_selectedCommentImages.length} image(s) selected',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          SizedBox(
-                            height: 70,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _selectedCommentImages.length,
-                              itemBuilder: (context, index) {
-                                return Padding(
-                                  padding: const EdgeInsets.only(right: 8),
-                                  child: Container(
-                                    width: 60,
-                                    height: 60,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.outline.withOpacity(0.3),
-                                        width: 1,
-                                      ),
-                                    ),
-                                    child: Stack(
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          child: _buildCommentImagePreview(
-                                            index,
-                                          ),
-                                        ),
-                                        Positioned(
-                                          top: 2,
-                                          right: 2,
-                                          child: GestureDetector(
-                                            onTap: () =>
-                                                _removeCommentImage(index),
-                                            child: Container(
-                                              decoration: BoxDecoration(
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.errorContainer,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: Icon(
-                                                Icons.close,
-                                                size: 16,
-                                                color: Theme.of(
-                                                  context,
-                                                ).colorScheme.onErrorContainer,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
+                        )
+                      else
+                        ListView.separated(
+                          physics: const NeverScrollableScrollPhysics(),
+                          shrinkWrap: true,
+                          itemCount: _comments.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (context, index) {
+                            final comment = _comments[index];
+                            return Consumer<AuthService>(
+                              builder: (context, authService, child) {
+                                final isCommentAuthor =
+                                    authService.currentUser?.id ==
+                                    comment.userId;
+                                return CommentCard(
+                                  comment: comment,
+                                  showActions: isCommentAuthor,
+                                  onDelete: isCommentAuthor
+                                      ? () =>
+                                            _showDeleteCommentDialog(comment.id)
+                                      : null,
+                                  onEdit: isCommentAuthor
+                                      ? () => _editComment(comment)
+                                      : null,
                                 );
                               },
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () {
-                                setState(() {
-                                  _selectedCommentImages.clear();
-                                  _commentImageCache.clear();
-                                });
-                              },
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                ),
-                                minimumSize: const Size(0, 24),
-                              ),
-                              child: Text(
-                                'Remove All',
-                                style: TextStyle(
-                                  color: Theme.of(context).colorScheme.error,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                        ],
-
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: ElevatedButton(
-                            onPressed: _isSubmitting ? null : _submitComment,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(
-                                context,
-                              ).colorScheme.primary,
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.onPrimary,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 20,
-                                vertical: 8,
-                              ),
-                              minimumSize: const Size(0, 36),
-                            ),
-                            child: _isSubmitting
-                                ? const SizedBox(
-                                    height: 16,
-                                    width: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : const Text('Post Comment'),
-                          ),
+                            );
+                          },
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    if (_comments.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.all(32),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.comment_outlined,
-                              size: 48,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'No comments yet',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                            Text(
-                              'Be the first to comment!',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ],
-                        ),
-                      )
-                    else
-                      ListView.separated(
-                        physics: const NeverScrollableScrollPhysics(),
-                        shrinkWrap: true,
-                        itemCount: _comments.length,
-                        separatorBuilder: (context, index) =>
-                            const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          final comment = _comments[index];
-                          return Consumer<AuthService>(
-                            builder: (context, authService, child) {
-                              final isCommentAuthor =
-                                  authService.currentUser?.id == comment.userId;
-                              return CommentCard(
-                                comment: comment,
-                                showActions: isCommentAuthor,
-                                onDelete: isCommentAuthor
-                                    ? () => _showDeleteCommentDialog(comment.id)
-                                    : null,
-                                onEdit: isCommentAuthor
-                                    ? () => _editComment(comment)
-                                    : null,
-                              );
-                            },
-                          );
-                        },
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -3925,14 +4190,6 @@ class _BlogDetailModalState extends State<BlogDetailModal> {
         );
       },
     );
-  }
-
-  @override
-  void dispose() {
-    _commentController.dispose();
-    _selectedCommentImages.clear();
-    _commentImageCache.clear();
-    super.dispose();
   }
 }
 
